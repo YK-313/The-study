@@ -11,7 +11,7 @@ SIM.w_loop  = 5;
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
 SIM.SIR     = -60;           % 希望信号対干渉電力比
-SIM.rho     = -25.5;
+SIM.rho     = -10;
 SIM.nsym    = 64;           % シンボル数         
 SIM.ndata = SIM.nsym;
 SIM.over = 2;
@@ -22,8 +22,8 @@ SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.mode = 'DASIC1';    %DASICの段数
-SIM.detmode='BCJR';     %BCJR,MLD(使わない)
+SIM.mode = 'DASIC2';    % 自動切換えまたは手動切り替え (Auto,DASIC1,DASIC2)
+SIM.threshold = 9.5527;      %自動切り替え時の残留SIの電力閾値
 
 
  
