@@ -11,9 +11,8 @@ SIM.w_loop  = 5;
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
 SIM.SIR     = -60;           % 希望信号対干渉電力比
-SIM.rho     = -20;
-SIM.nsym    = 64;           % シンボル数         
-SIM.ndata = SIM.nsym;
+SIM.rho     = -24;        
+SIM.ndata = 64; % シンボル数  
 SIM.over = 2;
 SIM.delayA=1;%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
 SIM.delayB=2;
@@ -173,21 +172,31 @@ powN=sum(abs(RX.bN).^2);
     RX.c(1)=RX.b(1);
     RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %自己干渉除去
     %電力計算
-    power.all = abs(RX.b).^2;
-    power.a = abs(RX.bA).^2;
-    power.b = abs(RX.bB).^2;
-    power.cross = 2*real(conj(RX.bA).*RX.bB);
-    power.dAll=abs(RX.c(2:end)).^2;
-    power.dSI= abs(Xi_vec_AA(2:64)-Xi_vec_AA(1:63)).^2;
-    %power.dDesired= abs(Xi_vec_AB(2:64).*TX.x(2:64,2)-Xi_vec_AB(1:63).*TX.x(1:63,2)).^2;
-    power.dDesired = abs(RX.bB(2:64)-RX.bB(1:63).*phi).^2;
-    power.dNoise= abs(RX.bN(2:64)-RX.bN(1:63).*phi).^2;
-    power.dSDcross= 2*real(conj( (Xi_vec_AA(2:64)-Xi_vec_AA(1:63)).*TX.x(2:64,1) ).* (RX.bB(2:64)-RX.bB(1:63).*phi ) );
-    power.dSNcross= 2*real(conj( (Xi_vec_AA(2:64)-Xi_vec_AA(1:63)).*TX.x(2:64,1) ).* (RX.bN(2:64)-RX.bN(1:63).*phi)  );
-    power.dDNcross= 2*real(conj( RX.bB(2:64)-RX.bB(1:63).*phi ).* ( RX.bN(2:64)-RX.bN(1:63).*phi ) );
-    % ResSI= abs(RX.c(2:end)).^2;
-    % ResSI2 = ResSI-abs(Xi_vec_AB(1:63)).^2-abs(Xi_vec_AB(2:64)).^2;
-    % 2*abs(delay_profile_AA_sir(2))^2*(1-cos(2*pi/fft_ptA))
+    power.all = abs(RX.b).^2; %受信信号の電力
+    power.a = abs(RX.bA).^2; %受信信号におけるSIの電力
+    power.b = abs(RX.bB).^2; %受信信号における所望信号の電力
+    power.cross = 2*real(conj(RX.bA).*RX.bB); %受信信号におけるSIと所望信号のクロス項
+
+    power.dAll=abs(RX.c(2:end)).^2;  %DASIC後の電力
+    power.dSI= abs(Xi_vec_AA(2:SIM.ndata)-Xi_vec_AA(1:SIM.ndata-1)).^2;%DASIC後SIの電力
+    power.dDesired = abs(RX.bB(2:SIM.ndata)-RX.bB(1:SIM.ndata-1).*phi).^2; %DASIC後の所望信号電力
+    power.dNoise= abs(RX.bN(2:SIM.ndata)-RX.bN(1:SIM.ndata-1).*phi).^2; %DASIC後の雑音電力
+    power.dSDcross= 2*real(conj( (Xi_vec_AA(2:SIM.ndata)-Xi_vec_AA(1:SIM.ndata-1)).*TX.x(2:SIM.ndata,1) ).* (RX.bB(2:SIM.ndata)-RX.bB(1:SIM.ndata-1).*phi ) ); %DASIC後のSIと所望信号のクロス項
+    power.dSNcross= 2*real(conj( (Xi_vec_AA(2:SIM.ndata)-Xi_vec_AA(1:SIM.ndata-1)).*TX.x(2:SIM.ndata,1) ).* (RX.bN(2:SIM.ndata)-RX.bN(1:SIM.ndata-1).*phi)  ); %DASIC後のSIと雑音のクロス項
+    power.dDNcross= 2*real(conj( RX.bB(2:SIM.ndata)-RX.bB(1:SIM.ndata-1).*phi ).* ( RX.bN(2:SIM.ndata)-RX.bN(1:SIM.ndata-1).*phi ) ); %所望信号と雑音のクロス項
+
+    %% 期待値に収束した場合の平均電力
+    power.tSI(1:SIM.ndata-1,1) = 2*abs(delay_profile_AA_sir(2))^2*(1-cos(2*pi/fft_ptA));
+    power.tDesired =abs(Xi_vec_AB(2:SIM.ndata)).^2+abs(Xi_vec_AB(1:SIM.ndata-1)).^2 ;
+    power.tNoise= abs(RX.bN(2:SIM.ndata)-RX.bN(1:SIM.ndata-1)).^2; %2N_0になるはず
+    power.tAll = power.tSI + power.tDesired + power.tNoise;
+    
+    %% 期待値をもとに予測する残留SIの電力
+    power.gSI = power.dAll - power.tDesired - CH.N0;
+  
+  
+
+%% それぞれの電力とクロス項を格納
 St.PowerAll(:,idx_loop) = power.all;
 St.PowerA(:,idx_loop) = power.a;
 St.PowerB(:,idx_loop) = power.b;
@@ -199,16 +208,27 @@ St.dPowerNoise(:,idx_loop) =   power.dNoise;
 St.dPowerSD(:,idx_loop) =   power.dSDcross;
 St.dPowerSN(:,idx_loop) =   power.dSNcross;
 St.dPowerDN(:,idx_loop) =   power.dDNcross;
+St.tPowerAll(:,idx_loop) =   power.tAll;
+St.tPowerSI(:,idx_loop) =   power.tSI;
+St.tPowerDesired(:,idx_loop) =   power.tDesired;
+St.tPowerNoise(:,idx_loop) =   power.tNoise;
+St.gPowerSI(:,idx_loop) = power.gSI;
  fprintf('%d/%d\n',idx_loop,SIM.nsamp)
 end
-avg.All=mean(St.PowerAll,"all")
-avg.A=mean(St.PowerA,"all")
-avg.B=mean(St.PowerB,"all")
-avg.Cross=mean(St.PowerCross,"all")
-avg.dAll=mean(St.dPowerAll,"all")
-avg.dSI=mean(St.dPowerSI,"all")
-avg.dDesired=mean(St.dPowerDesired,"all")
-avg.dNoise=mean(St.dPowerNoise,"all")
-avg.dSD=mean(St.dPowerSD,"all")
-avg.dSN=mean(St.dPowerSN,"all")
-avg.dDN=mean(St.dPowerDN,"all")
+%% 平均を計算
+avg.All=mean(St.PowerAll,"all");
+avg.A=mean(St.PowerA,"all");
+avg.B=mean(St.PowerB,"all");
+avg.Cross=mean(St.PowerCross,"all");
+avg.dAll=mean(St.dPowerAll,"all");
+avg.dSI=mean(St.dPowerSI,"all");
+avg.dDesired=mean(St.dPowerDesired,"all");
+avg.dNoise=mean(St.dPowerNoise,"all");
+avg.dSD=mean(St.dPowerSD,"all");
+avg.dSN=mean(St.dPowerSN,"all");
+avg.dDN=mean(St.dPowerDN,"all");
+avg.tAll=mean(St.tPowerAll,"all");
+avg.tSI=mean(St.tPowerSI,"all");
+avg.tDesired=mean(St.tPowerDesired,"all");
+avg.tNoise=mean(St.tPowerNoise,"all");
+avg.gSI=mean(St.gPowerSI,"all");
