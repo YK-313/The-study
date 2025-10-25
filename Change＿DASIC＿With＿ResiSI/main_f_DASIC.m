@@ -6,24 +6,24 @@ startTime = clock;
 %%%% Parameters %%%%
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
-SIM.SNR     = 0:2:14;         % ђMЌ†‘ОЋG‰№“d—Н”д
+SIM.SNR     = 0:2:14;         % дїЎеЏ·еЇѕй›‘йџій›»еЉ›жЇ”
 SIM.w_loop  = 5;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = -60;           % Љу–]ђMЌ†‘ОЉ±ЏВ“d—Н”д
-SIM.rho     = -30;
-SIM.nsym    = 64;           % ѓVѓ“ѓ{ѓ‹ђ”         
+SIM.SIR     = -60;           % еёЊжњ›дїЎеЏ·еЇѕе№Іжё‰й›»еЉ›жЇ”
+SIM.rho     = -20;
+SIM.nsym    = 64;           % г‚·гѓігѓњгѓ«ж•°         
 SIM.ndata = SIM.nsym;
 SIM.over = 2;
-SIM.delayA=1;%’x‰„”g‚М—ЈЋUѓ`ѓbѓv’x‰„ЋћЉФ(SIM.over‚Ж“Ї‚¶’l‚Й‚·‚й‚Ж1ѓVѓ“ѓ{ѓ‹’x‰„‚Й‚И‚й)
+SIM.delayA=1;%йЃ…е»¶жіўгЃ®й›ўж•ЈгѓЃгѓѓгѓ—йЃ…е»¶ж™‚й–“(SIM.overгЃЁеђЊгЃеЂ¤гЃ«гЃ™г‚‹гЃЁ1г‚·гѓігѓњгѓ«йЃ…е»¶гЃ«гЃЄг‚‹)
 SIM.delayB=2;
-SIM.int=1; %ѓCѓ“ѓ^ѓЉЃ[ѓo 1:‚ ‚и,2:‚И‚µ
-SIM.AA=2;%AAЉФѓpѓXђ”
-SIM.AB=16;%ABЉФѓpѓXђ”
-G.Q = 4; %•П’ІЋџђ”
+SIM.int=1; %г‚¤гѓіг‚їгѓЄгѓјгѓђ 1:гЃ‚г‚Љ,2:гЃЄгЃ—
+SIM.AA=2;%AAй–“гѓ‘г‚№ж•°
+SIM.AB=16;%ABй–“гѓ‘г‚№ж•°
+G.Q = 4; %е¤‰иЄїж¬Ўж•°
 G.ml=log2(G.Q);
-SIM.mode = 'Auto';    % Ћ©“®ђШЉ·‚¦‚Ь‚Ѕ‚НЋи“®ђШ‚и‘Ц‚¦ (Auto,DASIC1,DASIC2)
-SIM.threshold = 9.5527;      %Ћ©“®ђШ‚и‘Ц‚¦Ћћ‚МЋc—ЇSI‚М“d—Ни‡’l
+SIM.mode = 'Auto';    % и‡Єе‹•е€‡жЏ›гЃ€гЃѕгЃџгЃЇж‰‹е‹•е€‡г‚Љж›їгЃ€ (Auto,DASIC1,DASIC2)
+SIM.threshold = 9.5527;      %и‡Єе‹•е€‡г‚Љж›їгЃ€ж™‚гЃ®ж®‹з•™SIгЃ®й›»еЉ›й–ѕеЂ¤
 
 
  
@@ -38,7 +38,8 @@ parfor idx = 1:length(SIM.SNR)
     RES = main_task_f_DASIC(SIM.SNR(idx),idx,SIM,G);  
     BER(idx) = RES.BER;                       
 end
-elapsedTime = etime(clock, startTime);         % ѓvѓЌѓOѓ‰ѓЂ‚МЋАЌsЋћЉФ‚р‘Є’и
+elapsedTime = etime(clock, startTime);         % гѓ—гѓ­г‚°гѓ©гѓ гЃ®е®џиЎЊж™‚й–“г‚’жё¬е®љ
 fprintf('Elapsed time is %2.1f seconds\n', elapsedTime); 
 
-plot_BER                   % BER“Бђ«ђ}‚рЌмђ¬
+plot_BER                   % BERз‰№жЂ§е›іг‚’дЅњж€ђ
+
