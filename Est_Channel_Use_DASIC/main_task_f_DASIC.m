@@ -1,7 +1,7 @@
-%QPSKã€€BCJR MAP
-%1æ®µDASICã«ã‚ˆã‚Šãƒãƒ£ãƒãƒ«ã‚’æ¨å®šã—ï¼Œæ®‹ç•™SIã®é€šä¿¡è·¯ã®å¤§ãã•ã‚’é–¾å€¤ã¨æ¯”è¼ƒã—ã¦äºŒæ®µé©ç”¨ã™ã‚‹ã‹åˆ¤æ–­ã™ã‚‹ï¼
+%QPSK@BCJR MAP
+%1’iDASIC‚É‚æ‚èƒ`ƒƒƒlƒ‹‚ğ„’è‚µCc—¯SI‚Ì’ÊM˜H‚Ì‘å‚«‚³‚ğè‡’l‚Æ”äŠr‚µ‚Ä“ñ’i“K—p‚·‚é‚©”»’f‚·‚éD
 function SIM = main_task_f_DASIC(En,idx,SIM,G)
-CH.N0 = 10^(-En/10); %1ã‚·ãƒ³ãƒœãƒ«é–“éš”ã®é›‘éŸ³ã‚¨ãƒãƒ«ã‚®ãƒ¼å¯†åº¦
+CH.N0 = 10^(-En/10); %1ƒVƒ“ƒ{ƒ‹ŠÔŠu‚ÌG‰¹ƒGƒlƒ‹ƒM[–§“x
 ERR.noe   = zeros(SIM.nsamp,1);    ERR.noe_p = zeros(SIM.nsamp,1);    
 ERR.nod   = zeros(SIM.nsamp,1);    ERR.nod_p = zeros(SIM.nsamp,1);
 num_of_paths_AA = SIM.AA; 
@@ -12,60 +12,60 @@ fft_ptB = SIM.over*SIM.ndata;
 intrlv=SIM.int;
 constellation = [0.7071 + 0.7071i, -0.7071 + 0.7071i, 0.7071 - 0.7071i, -0.7071 - 0.7071i];
 alp2bit = de2bi(0:G.Q-1,'left-msb');
- %% ãƒˆãƒ¬ãƒªã‚¹ä½œæˆ æ‹˜æŸé•·=7
-    trellis = poly2trellis(7,[171 133]); %11ahã§ç”¨ã„ã‚‰ã‚Œã‚‹ã‚‚ã®
+ %% ƒgƒŒƒŠƒXì¬ S‘©’·=7
+    trellis = poly2trellis(7,[171 133]); %11ah‚Å—p‚¢‚ç‚ê‚é‚à‚Ì
     ConEnc = comm.ConvolutionalEncoder(trellis,'TerminationMethod','Terminated');
     APPDec = comm.APPDecoder(trellis,'Algorithm','True APP','TerminationMethod','Terminated');
     viterbidecoder = comm.ViterbiDecoder(trellis,'InputFormat','hard','TerminationMethod','Terminated');
     decUnquant = comm.ViterbiDecoder(trellis,'InputFormat','Unquantized','TracebackDepth',32,'TerminationMethod','Terminated');
 
 for idx_loop = 1:SIM.nsamp
-    TX.b    = randn(SIM.ndata-log2(trellis.numStates)-4,2)>0;%(A,B)æƒ…å ±ãƒ“ãƒƒãƒˆ ã€çµ‚ç«¯ãƒ“ãƒƒãƒˆåˆ†æ¸›ã‚‰ã™(ç•³ã¿è¾¼ã¿ã®åˆ†ã¨BCJRã®åˆ†)ã€‘
-   %ç•³ã¿è¾¼ã¿ç¬¦å·åŒ–
-    TX.codedata(:,1) = step(ConEnc,TX.b(:,1)); % A ç¬¦å·åŒ–
-    TX.codedata(:,2) = step(ConEnc,TX.b(:,2)); % b ç¬¦å·åŒ–
-   %ã‚¤ãƒ³ã‚¿ãƒªãƒ¼ãƒ–
+    TX.b    = randn(SIM.ndata-log2(trellis.numStates)-4,2)>0;%(A,B)î•ñƒrƒbƒg yI’[ƒrƒbƒg•ªŒ¸‚ç‚·(ô‚İ‚İ‚Ì•ª‚ÆBCJR‚Ì•ª)z
+   %ô‚İ‚İ•„†‰»
+    TX.codedata(:,1) = step(ConEnc,TX.b(:,1)); % A •„†‰»
+    TX.codedata(:,2) = step(ConEnc,TX.b(:,2)); % b •„†‰»
+   %ƒCƒ“ƒ^ƒŠ[ƒu
 if intrlv==1
     TX.codedata_in = round(TX.codedata);
     TX.codedata_in(:,1) = randintrlv(TX.codedata_in(:,1),1);
     TX.codedata_in(:,2) = randintrlv(TX.codedata_in(:,2),1);
 else
-    TX.codedata_in=TX.codedata;%ã‚¤ãƒ³ã‚¿ãƒªãƒ¼ãƒç„¡ã—ã®å ´åˆã“ã“ã‚’ã¤ã‹ã†(32-34ã‚³ãƒ¡ãƒ³ãƒˆã‚¢ã‚¦ãƒˆ)
+    TX.codedata_in=TX.codedata;%ƒCƒ“ƒ^ƒŠ[ƒo–³‚µ‚Ìê‡‚±‚±‚ğ‚Â‚©‚¤(32-34ƒRƒƒ“ƒgƒAƒEƒg)
 end
-    TX.codedata_int(:,1)=[0;0;0;0;TX.codedata_in(:,1);0;0;0;0];%BCJRã®çµ‚ç«¯ãƒ“ãƒƒãƒˆ(å‰å¾Œ0ã‚’4bit)è¿½åŠ 
+    TX.codedata_int(:,1)=[0;0;0;0;TX.codedata_in(:,1);0;0;0;0];%BCJR‚ÌI’[ƒrƒbƒg(‘OŒã0‚ğ4bit)’Ç‰Á
     TX.codedata_int(:,2)=[0;0;0;0;TX.codedata_in(:,2);0;0;0;0];
 
     
 
 
-    %% å¤‰èª¿
-    %Aã•ã‚“Bã•ã‚“å¤‰èª¿ (QPSK)
+    %% •Ï’²
+    %A‚³‚ñB‚³‚ñ•Ï’² (QPSK)
     TX.x   = pskmod(double(TX.codedata_int),G.Q,pi/G.Q,InputType="bit"); 
-    %% ã‚ã¨ã¯æ—¢å­˜ã®OFDMã®ãƒ—ãƒ­ã‚°ãƒ©ãƒ (AB)ã«AAã®ã‚‚ã®ã‚’ã‚³ãƒ”ãƒšã™ã‚‹å½¢ã§ä½œæˆã™ã‚‹ã ã‘
-    %%é€ä¿¡ä¿¡å·ã‚’æ™‚é–“é ˜åŸŸã¸
+    %% ‚ ‚Æ‚ÍŠù‘¶‚ÌOFDM‚ÌƒvƒƒOƒ‰ƒ€(AB)‚ÉAA‚Ì‚à‚Ì‚ğƒRƒsƒy‚·‚éŒ`‚Åì¬‚·‚é‚¾‚¯
+    %%‘—MM†‚ğŠÔ—Ìˆæ‚Ö
     TX.sA = ifft(TX.x(:,1), fft_ptA).*sqrt(fft_ptA);
     TX.sB = ifft(TX.x(:,2), fft_ptB).*sqrt(fft_ptB);
-     %% æ™‚ç©ºé–“é€šä¿¡è·¯è¡Œåˆ—
+     %% ‹óŠÔ’ÊM˜Hs—ñ
 
-        %ä½ç›¸å›è»¢ã‚ã‚Š
+        %ˆÊ‘Š‰ñ“]‚ ‚è
         delay_profile_AA = (randn(num_of_paths_AA, 1) + 1i * randn(num_of_paths_AA, 1))./sqrt(2 * num_of_paths_AA);
         delay_profile_AB = (randn(num_of_paths_AB, 1) + 1i * randn(num_of_paths_AB, 1))./sqrt(2 * num_of_paths_AB);
         %delay_profile_AB=1;
-        %ä½ç›¸å›è»¢ãªã—
+        %ˆÊ‘Š‰ñ“]‚È‚µ
         %delay_profile_AA = ones(num_of_paths_AA, 1);
         %delay_profile_AB = ones(num_of_paths_AB, 1);
         
-        %è¦æ ¼åŒ–
+        %‹KŠi‰»
         delay_profile_AA_s = delay_profile_AA./abs(delay_profile_AA);
-        delay_profile_AB_s =delay_profile_AB./abs(delay_profile_AB)./sqrt(length(delay_profile_AB)); %å„ãƒ‘ã‚¹ç­‰é›»åŠ›&P_b1ã«èª¿æ•´
-       %é›»åŠ›æ¯”ã‚’å°å…¥
+        delay_profile_AB_s =delay_profile_AB./abs(delay_profile_AB)./sqrt(length(delay_profile_AB)); %ŠeƒpƒX“™“d—Í&P_b1‚É’²®
+       %“d—Í”ä‚ğ“±“ü
     if SIM.AA==1
-        delay_profile_AA_rho=delay_profile_AA_s;%é…å»¶æ³¢ãªã—
+        delay_profile_AA_rho=delay_profile_AA_s;%’x‰„”g‚È‚µ
     else
         delay_profile_AA_rho=zeros(size(delay_profile_AA_s));
         rho_sum=0;
             for rr = 2:SIM.AA
-             rho = 10^( (SIM.rho-5*(rr-2)) /10); %3æ³¢ç›®ä»¥é™-5dB
+             rho = 10^( (SIM.rho-5*(rr-2)) /10); %3”g–ÚˆÈ~-5dB
              rho_sum = rho_sum+rho;
             end
         delay_profile_AA_rho(1) =delay_profile_AA_s(1)*sqrt(1/( 1 + rho_sum ) );
@@ -75,14 +75,14 @@ end
     end
         
         P_a=sum(abs(delay_profile_AA_rho).^2);
-        %SIRè€ƒæ…®
+        %SIRl—¶
         P_b=sum(abs(delay_profile_AB_s).^2);
         
         delay_profile_AA_sir=delay_profile_AA_rho*sqrt(P_b*10^(-SIM.SIR/10));
         P_a_sir=sum(abs(delay_profile_AA_sir).^2);
         
-    %% å·¡å›é€šä¿¡è·¯è¡Œåˆ—
-        %ABé–“
+    %% „‰ñ’ÊM˜Hs—ñ
+        %ABŠÔ
         H_circ_AB = [];
 tmp_profile_AB = zeros(fft_ptB,1); 
 tmp_profile_AB (1:SIM.delayB:SIM.delayB*num_of_paths_AB)= delay_profile_AB_s;
@@ -90,7 +90,7 @@ for iii = 1 : fft_ptB
     tmp_AB = circshift(tmp_profile_AB, iii - 1);
     H_circ_AB = [H_circ_AB tmp_AB];
 end
-        %AAé–“
+        %AAŠÔ
         H_circ_AA = [];
 tmp_profile_AA = zeros(fft_ptA,1); 
 tmp_profile_AA (1:SIM.delayA:SIM.delayA*num_of_paths_AA)= delay_profile_AA_sir;
@@ -98,65 +98,66 @@ for iii = 1 : fft_ptA
     tmp_AA = circshift(tmp_profile_AA, iii - 1);
     H_circ_AA = [H_circ_AA tmp_AA];
 end
-% å·¡å›é€šä¿¡è·¯è¡Œåˆ—ã‚’ã‚¹ãƒ‘ãƒ¼ã‚¹è¡Œåˆ—ã¸
+% „‰ñ’ÊM˜Hs—ñ‚ğƒXƒp[ƒXs—ñ‚Ö
 H_circ_AB = sparse(H_circ_AB);
 H_circ_AA = sparse(H_circ_AA);
 
-% å‘¨æ³¢æ•°é ˜åŸŸé€šä¿¡è·¯è¡Œåˆ—ã®ä½œæˆ
+% ü”g”—Ìˆæ’ÊM˜Hs—ñ‚Ìì¬
 Xi_vec_AB = fft(tmp_profile_AB, fft_ptB);
 Xi_mat_AB = diag(sparse(Xi_vec_AB));
 Xi_vec_AA = fft(tmp_profile_AA, fft_ptA);
 Xi_mat_AA = diag(sparse(Xi_vec_AA));
 
-   %% Channelã€€
-    %é€ä¿¡é›»åŠ›è¨ˆç®—ï¼ˆTXé›»åŠ›ï¼‰
+   %% Channel@
+    %‘—M“d—ÍŒvZiTX“d—Íj
     ERR.tx_pow(idx_loop) = mean([sum(abs(TX.sA).^2) sum(abs(TX.sB).^2)]);
-    % å¹²æ¸‰ãƒãƒ£ãƒãƒ«ã¨å¸Œæœ›ãƒãƒ£ãƒãƒ«ã®é©ç”¨ï¼ˆãƒãƒ£ãƒãƒ«è¡Œåˆ—ã‚’ä½¿ç”¨ï¼‰
+    % Š±Âƒ`ƒƒƒlƒ‹‚ÆŠó–]ƒ`ƒƒƒlƒ‹‚Ì“K—piƒ`ƒƒƒlƒ‹s—ñ‚ğg—pj
     RX.s_AA=H_circ_AA*TX.sA;
     RX.s_AB=H_circ_AB*TX.sB;    
-    % é›‘éŸ³ã®ç”Ÿæˆ
+    % G‰¹‚Ì¶¬
     CH.f = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
     CH.n =  ifft(CH.f, fft_ptB).*sqrt(fft_ptB);
 %{
-% SNRã®è¨ˆç®— (dBã‚¹ã‚±ãƒ¼ãƒ«)
+% SNR‚ÌŒvZ (dBƒXƒP[ƒ‹)
 SNR_linear = sum(abs(RX.s_AB).^2) / sum(abs(CH.n).^2);
 SNR_dB = 10 * log10(SNR_linear);
 %}
    
  
-RX.bA = fft(RX.s_AA, fft_ptA)./sqrt(fft_ptA);%64å€‹ã®å—ä¿¡ã‚·ãƒ³ãƒœãƒ«
-RX.bB = fft(RX.s_AB, fft_ptB)./sqrt(fft_ptB);%64å€‹ã®å—ä¿¡ã‚·ãƒ³ãƒœãƒ«
-RX.bN = fft(CH.n, fft_ptB)./sqrt(fft_ptB);%64å€‹ã®å—ä¿¡ã‚·ãƒ³ãƒœãƒ«
+RX.bA = fft(RX.s_AA, fft_ptA)./sqrt(fft_ptA);%64ŒÂ‚ÌóMƒVƒ“ƒ{ƒ‹
+RX.bB = fft(RX.s_AB, fft_ptB)./sqrt(fft_ptB);%64ŒÂ‚ÌóMƒVƒ“ƒ{ƒ‹
+RX.bN = fft(CH.n, fft_ptB)./sqrt(fft_ptB);%64ŒÂ‚ÌóMƒVƒ“ƒ{ƒ‹
 
 
-RX.b=RX.bA+RX.bB;
+RX.b=RX.bA+RX.bB+RX.bN;
 powA=sum(abs(RX.bA).^2);
 powB=sum(abs(RX.bB).^2);
 powN=sum(abs(RX.bN).^2);
 10*log10(powB/powA)
 10*log10(powB/powN)
-    % å—ä¿¡é›»åŠ›è¨ˆç®—ï¼ˆRXé›»åŠ›ï¼‰
+    % óM“d—ÍŒvZiRX“d—Íj
     ERR.rx_pow(idx_loop) = sum(abs(RX.b).^2);
 
 switch(SIM.mode)
     case {'cn_est1','cn_est2','DASIC1','DASIC2'}
-    %% DASIC (å‘¨æ³¢æ•°é ˜åŸŸ)
-    phi = TX.x(2:end,1) ./ TX.x(1:end-1,1);  % ä½ç›¸ã‚·ãƒ•ãƒˆã‚’è¨ˆç®—
+    %% DASIC (ü”g”—Ìˆæ)
+    phi = TX.x(2:end,1) ./ TX.x(1:end-1,1);  % ˆÊ‘ŠƒVƒtƒg‚ğŒvZ
     RX.c=zeros(SIM.ndata,1);
     RX.c(1)=RX.b(1);
-    RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %è‡ªå·±å¹²æ¸‰é™¤å»
+    RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %©ŒÈŠ±Âœ‹
 
+    
     RX.c2=zeros(SIM.ndata,1);
     RX.c2(1)=RX.b(1);
     RX.c2(2)=RX.b(2);
-    RX.c2(3:SIM.ndata) = RX.c(3:SIM.ndata) -  phi(2:end).*RX.c(2:SIM.ndata-1); %è‡ªå·±å¹²æ¸‰é™¤å» 
+    RX.c2(3:SIM.ndata) = RX.c(3:SIM.ndata) -  phi(2:end).*RX.c(2:SIM.ndata-1); %©ŒÈŠ±Âœ‹ 
 end
 switch(SIM.mode)
     case {'cn_est1','DASIC1'}
    %% BCJR
         BCJR1.alpha = zeros(4,length(TX.x))-1000000;
-        BCJR1.alpha(1,1) = log(1); %logå–ã‚‹ã¨1â†’ç¢ºç‡100%
-        BCJR1.alpha(1,2) = log(1); %logå–ã‚‹ã¨1â†’ç¢ºç‡100%
+        BCJR1.alpha(1,1) = log(1); %logæ‚é‚Æ1¨Šm—¦100%
+        BCJR1.alpha(1,2) = log(1); %logæ‚é‚Æ1¨Šm—¦100%
         BCJR1.beta = zeros(4,length(TX.x))-1000000;
         BCJR1.beta(1,end) = log(1);
         BCJR1.beta(1,end-1) = log(1);
@@ -169,14 +170,14 @@ switch(SIM.mode)
      trel1 = BCJRTrellisDasic(TX,xx,CH,G,0,1); 
 
     for idx_in = 1:trel1.num_in  
-     for sigi=1:trel1.num_state %çŠ¶æ…‹i
-           BCJR1.Gamma(sigi,trel1.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.c(xx+1)-trel1.outputs(sigi,idx_in)))^2)/2/CH.N0;%å°¤åº¦ã®è¨ˆç®—
+     for sigi=1:trel1.num_state %ó‘Ôi
+           BCJR1.Gamma(sigi,trel1.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.c(xx+1)-trel1.outputs(sigi,idx_in)))^2)/2/CH.N0;%–Ş“x‚ÌŒvZ
       end
     end
    
-    for sigj = 1:trel1.num_state%çŠ¶æ…‹j 
+    for sigj = 1:trel1.num_state%ó‘Ôj 
        BCJR1.aaa = zeros(trel1.num_state,1);
-     for sigi=1:trel1.num_state %çŠ¶æ…‹i
+     for sigi=1:trel1.num_state %ó‘Ôi
           BCJR1.aaa(sigi)=BCJR1.alpha(sigi,xx)+BCJR1.Gamma(sigi,sigj,xx);
 
       end
@@ -188,9 +189,9 @@ switch(SIM.mode)
  
  for xx = length(RX.c):-1:3
      
-     for sigi = 1:trel1.num_state%çŠ¶æ…‹i
+     for sigi = 1:trel1.num_state%ó‘Ôi
         BCJR1.bbb = zeros(trel1.num_state,1);
-        for sigj=1:trel1.num_state %çŠ¶æ…‹j
+        for sigj=1:trel1.num_state %ó‘Ôj
 
           BCJR1.bbb(sigj)=BCJR1.beta(sigj,xx)+BCJR1.Gamma(sigi,sigj,xx-1);
 
@@ -241,11 +242,11 @@ switch(SIM.mode)
             end
               BCJR1.LLL4 = BCJR1.LLL4+log_MAP;
     %%%%%%%%%%%%%%%%%%%%
-     BCJR1.L(2*(xx-1)-1,1) = BCJR1.LLL1-BCJR1.LLL2;%ooãƒ“ãƒƒãƒˆã®å·¦ LLL1>LLL2â†’1
-     BCJR1.L(2*(xx-1),1) = BCJR1.LLL3-BCJR1.LLL4;%ooãƒ“ãƒƒãƒˆã®å³
+     BCJR1.L(2*(xx-1)-1,1) = BCJR1.LLL1-BCJR1.LLL2;%ooƒrƒbƒg‚Ì¶ LLL1>LLL2¨1
+     BCJR1.L(2*(xx-1),1) = BCJR1.LLL3-BCJR1.LLL4;%ooƒrƒbƒg‚Ì‰E
       b_hat = BCJR1.L>0 ;
  end
-%% BCJRã‹ã‚‰ã®åˆ¤å®š
+%% BCJR‚©‚ç‚Ì”»’è
 if intrlv==1
 BCJR1.a=randdeintrlv(BCJR1.L(3:end-4),1);
 else
@@ -253,11 +254,11 @@ BCJR1.a=BCJR1.L(3:end-4);
 end
  BCJR1.decode_bhat=APPDec(zeros(60,1),BCJR1.a );
 BCJR1.decode=BCJR1.decode_bhat>0;
-%%æ¨å®šæ‰€æœ›ä¿¡å·ã‚·ãƒ³ãƒœãƒ«ã®ä½œæˆ
-%ã‚·ãƒ³ãƒœãƒ«ã‚’ãã®ã¾ã¾
+%%„’èŠ–]M†ƒVƒ“ƒ{ƒ‹‚Ìì¬
+%ƒVƒ“ƒ{ƒ‹‚ğ‚»‚Ì‚Ü‚Ü
 % b_hat_t=[0;0;b_hat];
 % xbhat = pskmod(double(b_hat_t),G.Q,pi/G.Q,InputType="bit"); 
-%å¾©å·ã—ã¦ã‹ã‚‰ä½œæˆ
+%•œ†‚µ‚Ä‚©‚çì¬
 A=BCJR1.decode(1:end-6);
 AA=step(ConEnc,A);
 AAA=randintrlv(round(AA),1);
@@ -266,11 +267,11 @@ xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
 end
 switch SIM.mode
 case {'cn_est2','DASIC2'}
-%% äºŒæ®µç”¨BCJR
+%% “ñ’i—pBCJR
 
         BCJR2.alpha = zeros(16,length(TX.x))-1000000;
-        BCJR2.alpha(1,1) = log(1); %logå–ã‚‹ã¨1â†’ç¢ºç‡100%
-        BCJR2.alpha(1,2) = log(1); %logå–ã‚‹ã¨1â†’ç¢ºç‡100%
+        BCJR2.alpha(1,1) = log(1); %logæ‚é‚Æ1¨Šm—¦100%
+        BCJR2.alpha(1,2) = log(1); %logæ‚é‚Æ1¨Šm—¦100%
         BCJR2.beta = zeros(16,length(TX.x))-1000000;
         BCJR2.beta(1,end) = log(1);
         BCJR2.beta(1,end-1) = log(1);
@@ -283,26 +284,26 @@ case {'cn_est2','DASIC2'}
      trel2 = BCJRTrellis2Dasic(TX,xx,CH,G,0,1); 
 
     for idx_in = 1:trel2.num_in 
-     for state=1:16 %çŠ¶æ…‹æ•°(äºŒæ®µã ã¨16)
+     for state=1:16 %ó‘Ô”(“ñ’i‚¾‚Æ16)
           BCJR2.Gamma(state,trel2.next_state(state,idx_in)+1,xx) = (-1*(abs(RX.c2(xx+1)-trel2.outputs(state,idx_in)))^2)/6/CH.N0;
       end
     end  
-for sigk = 1:16 % æ¬¡çŠ¶æ…‹
+for sigk = 1:16 % Ÿó‘Ô
      BCJR2.aaa = zeros(16,1);
-    for state=1:16 % ç¾åœ¨ã®çŠ¶æ…‹(1~16)
+    for state=1:16 % Œ»İ‚Ìó‘Ô(1~16)
          BCJR2.aaa(state) =  BCJR2.alpha(state,xx) +  BCJR2.Gamma(state,sigk,xx);
     end
      BCJR2.alpha(sigk, xx+1) = LOG_MAP( BCJR2.aaa, 16);
 end
-     BCJR2.max_val = max( BCJR2.alpha(:, xx+1));%è¦æ ¼åŒ–
+     BCJR2.max_val = max( BCJR2.alpha(:, xx+1));%‹KŠi‰»
      BCJR2.alpha(:, xx+1) =  BCJR2.alpha(:, xx+1) -  BCJR2.max_val;
 end 
  
 for xx = length(RX.c2):-1:3
      
-     for state = 1:16%çŠ¶æ…‹
+     for state = 1:16%ó‘Ô
          BCJR2.bbb = zeros(16,1);
-        for sigk=1:16 %æ¬¡çŠ¶æ…‹
+        for sigk=1:16 %Ÿó‘Ô
            BCJR2.bbb(sigk)= BCJR2.beta(sigk,xx)+ BCJR2.Gamma(state,sigk,xx-1);
         end  
           BCJR2.beta(state,xx-1) = LOG_MAP( BCJR2.bbb,16);
@@ -347,11 +348,11 @@ for xx = length(RX.c2):-1:3
             end
                BCJR2.LLL4 =  BCJR2.LLL4+log_MAP;
     %%%%%%%%%%%%%%%%%%%%
-      BCJR2.L(2*(xx-1)-1,1) =  BCJR2.LLL1- BCJR2.LLL2;%ooãƒ“ãƒƒãƒˆã®å·¦ LLL1>LLL2â†’1
-      BCJR2.L(2*(xx-1),1) =  BCJR2.LLL3- BCJR2.LLL4;%ooãƒ“ãƒƒãƒˆã®å³
+      BCJR2.L(2*(xx-1)-1,1) =  BCJR2.LLL1- BCJR2.LLL2;%ooƒrƒbƒg‚Ì¶ LLL1>LLL2¨1
+      BCJR2.L(2*(xx-1),1) =  BCJR2.LLL3- BCJR2.LLL4;%ooƒrƒbƒg‚Ì‰E
            b_hat = BCJR2.L>0 ;
  end
-%% BCJRã‹ã‚‰ã®åˆ¤å®š
+%% BCJR‚©‚ç‚Ì”»’è
 if intrlv==1
  BCJR2.a=randdeintrlv( BCJR2.L(3:end-4),1);
 else
@@ -360,19 +361,19 @@ end
  BCJR2.decode_bhat=APPDec(zeros(60,1), BCJR2.a);
  BCJR2.decode= BCJR2.decode_bhat>0;
 
-%ã‚·ãƒ³ãƒœãƒ«ã‚’å¾©å·ã—ã¦ã‹ã‚‰ä½œæˆ
+%ƒVƒ“ƒ{ƒ‹‚ğ•œ†‚µ‚Ä‚©‚çì¬
 A=BCJR2.decode(1:end-6);
 AA=step(ConEnc,A);
 AAA=randintrlv(round(AA),1);
 AAAA=[0;0;0;0;AAA;0;0;0;0];
 xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
 end
-%%ãƒãƒ£ãƒãƒ«æ¨å®š
+%%ƒ`ƒƒƒlƒ‹„’è
 switch SIM.mode
     case 'cn_est'
-EST.Xi=RX.b./TX.x(:,1);%æ‰€æœ›ä¿¡å·ã‚‚é›‘éŸ³æ‰±ã„ã§xiAAæ¨å®š
+EST.Xi=RX.b./TX.x(:,1);%Š–]M†‚àG‰¹ˆµ‚¢‚ÅxiAA„’è
     case{'cn_est1','cn_est2'}
-EST.Xi=(RX.b(1:SIM.ndata)-Xi_vec_AB(1:SIM.ndata).*xbhat)./TX.x(:,1);%æ‰€æœ›ä¿¡å·ã‚‚é›‘éŸ³æ‰±ã„ã§xiAAæ¨å®š
+EST.Xi=(RX.b(1:SIM.ndata)-Xi_vec_AB(1:SIM.ndata).*xbhat)./TX.x(:,1);%Š–]M†‚àG‰¹ˆµ‚¢‚ÅxiAA„’è
 end
 EST.h = ifft(EST.Xi, SIM.ndata);
 Window = zeros (length(EST.h),1);
@@ -380,14 +381,14 @@ Window(1:2) = 1;
 EST.hTilde = EST.h.*Window;
 EST.NewXi = fft(EST.hTilde,SIM.ndata);
 
-%% SIã®ãƒ¬ãƒ—ãƒªã‚«ã‚’æ¸›ç®—ã—ï¼Œå¾©å·
+%% SI‚ÌƒŒƒvƒŠƒJ‚ğŒ¸Z‚µC•œ†
 switch SIM.mode
     case {'cn_est','cn_est1','cn_est2'}
 switch SIM.detmode
     case'MLD'
-tilde_xb=(RX.b-EST.NewXi.*TX.x(:,1))./Xi_vec_AB;%SIã®ã‚·ãƒ³ãƒœãƒ«æ¸›ç®—ã—ï¼ŒxiABã§å‰²ã‚‹
-[~,rxalp]   = min(abs(tilde_xb(:)-constellation),[],2); %ãƒ¦ãƒ¼ã‚¯ãƒªãƒƒãƒ‰è·é›¢ãŒæœ€å°ã®Mé€²æ•°ã®è¨˜å·ã‚’æ¢ç´¢
-rxdata_p      = alp2bit(rxalp,:); % è¨˜å·ã‚’ãƒ“ãƒƒãƒˆã«å¤‰æ›
+tilde_xb=(RX.b-EST.NewXi.*TX.x(:,1))./Xi_vec_AB;%SI‚ÌƒVƒ“ƒ{ƒ‹Œ¸Z‚µCxiAB‚ÅŠ„‚é
+[~,rxalp]   = min(abs(tilde_xb(:)-constellation),[],2); %ƒ†[ƒNƒŠƒbƒh‹——£‚ªÅ¬‚ÌMi”‚Ì‹L†‚ğ’Tõ
+rxdata_p      = alp2bit(rxalp,:); % ‹L†‚ğƒrƒbƒg‚É•ÏŠ·
 for i=1:length(rxdata_p)
  rxdata(2*i-1)=rxdata_p(i,1);
  rxdata(2*i)=rxdata_p(i,2);
@@ -399,8 +400,8 @@ det.decode=APPDec(zeros(60,1), det.deint)>0;
 tilde_xb=RX.b-EST.NewXi.*TX.x(:,1);
 %%BCJR
   BCJR.alpha = zeros(4,length(TX.x))-1000000;
-        BCJR.alpha(1,1) = log(1); %logå–ã‚‹ã¨1â†’ç¢ºç‡100%
-        BCJR.alpha(1,2) = log(1); %logå–ã‚‹ã¨1â†’ç¢ºç‡100%
+        BCJR.alpha(1,1) = log(1); %logæ‚é‚Æ1¨Šm—¦100%
+        BCJR.alpha(1,2) = log(1); %logæ‚é‚Æ1¨Šm—¦100%
         BCJR.beta = zeros(4,length(TX.x))-1000000;
         BCJR.beta(1,end) = log(1);
         BCJR.beta(1,end-1) = log(1);
@@ -412,14 +413,14 @@ tilde_xb=RX.b-EST.NewXi.*TX.x(:,1);
      trel = BCJRTrellis(TX,xx,CH,G,0,1); 
 
     for idx_in = 1:trel.num_in  
-     for sigi=1:trel.num_state %çŠ¶æ…‹i
-           BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(tilde_xb(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%å°¤åº¦ã®è¨ˆç®—
+     for sigi=1:trel.num_state %ó‘Ôi
+           BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(tilde_xb(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%–Ş“x‚ÌŒvZ
       end
     end
    
-    for sigj = 1:trel.num_state%çŠ¶æ…‹j 
+    for sigj = 1:trel.num_state%ó‘Ôj 
        BCJR.aaa = zeros(trel.num_state,1);
-     for sigi=1:trel.num_state %çŠ¶æ…‹i
+     for sigi=1:trel.num_state %ó‘Ôi
           BCJR.aaa(sigi)=BCJR.alpha(sigi,xx)+BCJR.Gamma(sigi,sigj,xx);
 
       end
@@ -431,9 +432,9 @@ tilde_xb=RX.b-EST.NewXi.*TX.x(:,1);
  
  for xx = length(RX.b):-1:2
      
-     for sigi = 1:trel.num_state%çŠ¶æ…‹i
+     for sigi = 1:trel.num_state%ó‘Ôi
         BCJR.bbb = zeros(trel.num_state,1);
-        for sigj=1:trel.num_state %çŠ¶æ…‹j
+        for sigj=1:trel.num_state %ó‘Ôj
 
           BCJR.bbb(sigj)=BCJR.beta(sigj,xx)+BCJR.Gamma(sigi,sigj,xx-1);
 
@@ -484,12 +485,12 @@ tilde_xb=RX.b-EST.NewXi.*TX.x(:,1);
             end
               BCJR.LLL4 = BCJR.LLL4+log_MAP;
     %%%%%%%%%%%%%%%%%%%%
-     BCJR.L(2*(xx-1)-1,1) = BCJR.LLL1-BCJR.LLL2;%ooãƒ“ãƒƒãƒˆã®å·¦ LLL1>LLL2â†’1
-     BCJR.L(2*(xx-1),1) = BCJR.LLL3-BCJR.LLL4;%ooãƒ“ãƒƒãƒˆã®å³
+     BCJR.L(2*(xx-1)-1,1) = BCJR.LLL1-BCJR.LLL2;%ooƒrƒbƒg‚Ì¶ LLL1>LLL2¨1
+     BCJR.L(2*(xx-1),1) = BCJR.LLL3-BCJR.LLL4;%ooƒrƒbƒg‚Ì‰E
      % b_hat(2*(xx-1)-1,1) = BCJR1.L(2*(xx-1)-1)>0 ;
      % b_hat(2*(xx-1),1) = BCJR1.L(2*(xx-1))>0 ;
  end
-%% BCJRã‹ã‚‰ã®åˆ¤å®š
+%% BCJR‚©‚ç‚Ì”»’è
 % b_hat_t=b_hat(1:end-2);
 % deint_bhat = randdeintrlv(double(b_hat_t),1);
 if intrlv==1
