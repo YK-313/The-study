@@ -17,8 +17,8 @@ grid on
 lb(1) = xlabel('rho [dB]');
 lb(2) = ylabel('BER');
 
-axis([min(SIM.rho) max(SIM.rho) 10^(-6) 10^-4]);
+axis([min(SIM.rho) max(SIM.rho) 10^(-5) 10^-1]);
 
-set(gca,'Linewidth',LW,'FontName',FN,'FontSize',FS,'ytick',10.^[-6:1:-4],'PlotBoxAspectRatio',[1 1 1]);
+set(gca,'Linewidth',LW,'FontName',FN,'FontSize',FS,'ytick',10.^[-5:1:-1],'PlotBoxAspectRatio',[1 1 1]);
 set(lb,'FontName',FN,'FontSize',FS);
 set(h,'Linewidth',LW,'MarkerSize',MS);

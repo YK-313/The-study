@@ -6,12 +6,12 @@ startTime = clock;
 %%%% Parameters %%%%
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
-SIM.SNR     = 12;         % 信号対雑音電力比
-SIM.w_loop  = 6;            
+SIM.SNR     = 8;         % 信号対雑音電力比
+SIM.w_loop  = 5;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
 SIM.SIR     = -60;           % 希望信号対干渉電力比
-SIM.rho     = -25:0.1:-24.5;
+SIM.rho     = -20:1:-15;
 SIM.nsym    = 64;           % シンボル数         
 SIM.ndata = SIM.nsym;
 SIM.over = 2;
@@ -22,7 +22,7 @@ SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.mode = 'DASIC1';    %DASICの段数
+SIM.mode = 'DASIC2';    %DASICの段数
 SIM.detmode='BCJR';     %BCJR,MLD(使わない)
 
 
