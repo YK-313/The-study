@@ -24,7 +24,7 @@ SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
 SIM.mode = 'Auto';    % 自動切換えまたは手動切り替え (Auto,DASIC1,DASIC2)
-SIM.threshold = 29.9515;      %自動切り替え時の残留SIの電力閾値
+SIM.threshold = 4.9999*10^5;      %自動切り替え時の残留SIの電力閾値
 
 
  
