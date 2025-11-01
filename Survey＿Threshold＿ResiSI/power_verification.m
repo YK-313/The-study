@@ -7,7 +7,7 @@ startTime = clock;
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
 SIM.SNR     = 12;         % 信号対雑音電力比
-SIM.w_loop  = 6;            
+SIM.w_loop  = 5;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
 SIM.SIR     = -60;           % 希望信号対干渉電力比
@@ -43,10 +43,6 @@ alp2bit = de2bi(0:G.Q-1,'left-msb');
     APPDec = comm.APPDecoder(trellis,'Algorithm','True APP','TerminationMethod','Terminated');
     viterbidecoder = comm.ViterbiDecoder(trellis,'InputFormat','hard','TerminationMethod','Terminated');
     decUnquant = comm.ViterbiDecoder(trellis,'InputFormat','Unquantized','TracebackDepth',32,'TerminationMethod','Terminated');
-St.power_all=zeros(fft_ptA,SIM.nsamp);
-St.power_a=zeros(fft_ptA,SIM.nsamp);
-St.power_b=zeros(fft_ptA,SIM.nsamp);
-St.power_cross=zeros(fft_ptA,SIM.nsamp);
 
 for idx_loop = 1:SIM.nsamp
     TX.b    = randn(SIM.ndata-log2(trellis.numStates)-4,2)>0;%(A,B)情報ビット 【終端ビット分減らす(畳み込みの分とBCJRの分)】
@@ -172,10 +168,10 @@ powN=sum(abs(RX.bN).^2);
     RX.c(1)=RX.b(1);
     RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %自己干渉除去
     %電力計算
-    power.all = abs(RX.b).^2; %受信信号の電力
-    power.a = abs(RX.bA).^2; %受信信号におけるSIの電力
-    power.b = abs(RX.bB).^2; %受信信号における所望信号の電力
-    power.cross = 2*real(conj(RX.bA).*RX.bB); %受信信号におけるSIと所望信号のクロス項
+    power.All = abs(RX.b).^2; %受信信号の電力
+    power.A = abs(RX.bA).^2; %受信信号におけるSIの電力
+    power.B = abs(RX.bB).^2; %受信信号における所望信号の電力
+    power.Cross = 2*real(conj(RX.bA).*RX.bB); %受信信号におけるSIと所望信号のクロス項
 
     power.dAll=abs(RX.c(2:end)).^2;  %DASIC後の電力
     power.dSI= abs(Xi_vec_AA(2:SIM.ndata)-Xi_vec_AA(1:SIM.ndata-1)).^2;%DASIC後SIの電力
@@ -192,15 +188,16 @@ powN=sum(abs(RX.bN).^2);
     power.tAll = power.tSI + power.tDesired + power.tNoise;
     
     %% 期待値をもとに予測する残留SIの電力
-    power.gSI = power.dAll - power.tDesired - CH.N0;
-  
+    power.gSI = power.dAll - power.tDesired - 2*CH.N0;
+    %% 期待値をもとに予測するSIの電力
+    power.gA = power.All - power.B - CH.N0;
   
 
 %% それぞれの電力とクロス項を格納
-St.PowerAll(:,idx_loop) = power.all;
-St.PowerA(:,idx_loop) = power.a;
-St.PowerB(:,idx_loop) = power.b;
-St.PowerCross(:,idx_loop) = power.cross;
+St.PowerAll(:,idx_loop) = power.All;
+St.PowerA(:,idx_loop) = power.A;
+St.PowerB(:,idx_loop) = power.B;
+St.PowerCross(:,idx_loop) = power.Cross;
 St.dPowerAll(:,idx_loop) =   power.dAll;
 St.dPowerSI(:,idx_loop) =   power.dSI;
 St.dPowerDesired(:,idx_loop) =   power.dDesired;
@@ -213,6 +210,7 @@ St.tPowerSI(:,idx_loop) =   power.tSI;
 St.tPowerDesired(:,idx_loop) =   power.tDesired;
 St.tPowerNoise(:,idx_loop) =   power.tNoise;
 St.gPowerSI(:,idx_loop) = power.gSI;
+St.gPowerA(:,idx_loop) = power.gA;
  fprintf('%d/%d\n',idx_loop,SIM.nsamp)
 end
 %% 平均を計算
@@ -232,3 +230,4 @@ avg.tSI=mean(St.tPowerSI,"all");
 avg.tDesired=mean(St.tPowerDesired,"all");
 avg.tNoise=mean(St.tPowerNoise,"all");
 avg.gSI=mean(St.gPowerSI,"all");
+avg.gA=mean(St.gPowerA,"all");
