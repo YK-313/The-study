@@ -12,7 +12,7 @@ SIM.w_loop  = 5;
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
 SIM.SIR     = -60;           % 希望信号対干渉電力比
-SIM.rho     = -20;
+SIM.rho     = -30;
 SIM.nsym    = 64;           % シンボル数         
 SIM.ndata = SIM.nsym;
 SIM.over = 2;
@@ -34,8 +34,8 @@ BER = zeros(size(SIM.SNR));
 %%%% Task %%%%
 %%%%%%%%%%%%%%%
 SIM.nsamp   = 10^SIM.w_loop; 
-for idx = 1:length(SIM.SNR)
-%parfor idx = 1:length(SIM.SNR)
+%for idx = 1:length(SIM.SNR)
+parfor idx = 1:length(SIM.SNR)
     RES = main_task_f_DASIC(SIM.SNR(idx),idx,SIM,G);  
     BER(idx) = RES.BER;                       
 end
