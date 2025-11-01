@@ -7,7 +7,7 @@ startTime = clock;
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
 SIM.SNR     = 12;         % 信号対雑音電力比
-SIM.w_loop  = 5;            
+SIM.w_loop  = 6;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
 SIM.SIR     = -60;           % 希望信号対干渉電力比
@@ -21,8 +21,6 @@ SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.mode = 'cn_est1';    %チャネル推定のためのDASICの段数 (cn_est,cn_est1,cn_est2) ※cn_estはDASICなし
-SIM.detmode='BCJR';     %BCJR,MLD(使わない)
 
 %QPSK　BCJR MAP
 %1段DASICによりチャネルを推定し，残留SIの通信路の大きさを閾値と比較して二段適用するか判断する．
