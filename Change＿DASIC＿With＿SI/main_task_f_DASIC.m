@@ -140,8 +140,9 @@ RX.b=RX.bA+RX.bB+RX.bN;
     RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %自己干渉除去
 
 if strcmp(SIM.mode ,'Auto')
-    EstSI = mean(abs(RX.c(2:end)).^2 - abs(Xi_vec_AB(2:SIM.ndata)).^2 - CH.N0); %DASIC後の信号電力から，所望信号と雑音成分に関する電力を減算し，残留SIの電力を得る
-    if EstSI <= SIM.threshold
+    EstSI = abs(RX.b).^2 - abs(Xi_vec_AB).^2 - CH.N0; %DASIC後の信号電力から，所望信号と雑音成分に関する電力を減算し，残留SIの電力を得る
+    AvgEstSI = mean(EstSI(1:SIM.ndata));
+    if AvgEstSI <= SIM.threshold
         mode = 'DASIC1';
     else
         mode = 'DASIC2';
