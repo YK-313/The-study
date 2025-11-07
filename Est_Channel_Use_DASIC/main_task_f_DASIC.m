@@ -128,8 +128,8 @@ RX.bA = fft(RX.s_AA, fft_ptA)./sqrt(fft_ptA);%64個の受信シンボル
 RX.bB = fft(RX.s_AB, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
 RX.bN = fft(CH.n, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
 
-
-RX.b=RX.bA+RX.bB+RX.bN;
+RX.b=RX.bA;%雑音・所望信号なし
+%RX.b=RX.bA+RX.bB+RX.bN;
 powA=sum(abs(RX.bA).^2);
 powB=sum(abs(RX.bB).^2);
 powN=sum(abs(RX.bN).^2);
@@ -371,11 +371,16 @@ end
 %%チャネル推定
 switch SIM.mode
     case 'cn_est'
-EST.Xi=RX.b./TX.x(:,1);%所望信号も雑音扱いでxiAA推定
+EST.Xi=RX.b(1:SIM.ndata)./TX.x(:,1);%所望信号も雑音扱いでxiAA推定
     case{'cn_est1','cn_est2'}
 EST.Xi=(RX.b(1:SIM.ndata)-Xi_vec_AB(1:SIM.ndata).*xbhat)./TX.x(:,1);%所望信号も雑音扱いでxiAA推定
 end
-EST.h = ifft(EST.Xi, SIM.ndata);
+% EST.h1 = ifft(EST.Xi, SIM.ndata);%64ifft
+% EST.h2 = ifft(EST.Xi, fft_ptA);%128ifft(0パティング)
+% EST.h3 = ifft([EST.Xi;EST.Xi], fft_ptA);%128ifft(1~64をコピー)
+EST.h = ifft([EST.Xi;flipud(EST.Xi)], fft_ptA);%128ifft(1~64を逆順にして64~1をコピー)
+EST.h_1=EST.h(2)*2;%h1を推定(おそらく2倍サンプリング，2パス時のみ有効，理想的にはh1と完全一致)
+EST.h_0=EST.Xi(1)-EST.h_1;
 Window = zeros (length(EST.h),1);
 Window(1:2) = 1;
 EST.hTilde = EST.h.*Window;
