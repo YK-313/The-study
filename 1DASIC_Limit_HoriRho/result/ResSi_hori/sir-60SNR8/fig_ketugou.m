@@ -1,5 +1,5 @@
 % 1. .figファイルを開く
-fig1 = openfig( "1Rho-20~-15.fig", 'invisible'); % .figファイルを開く
+fig1 = openfig( "1Rho-20~-19.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 
 % 2. プロットされたデータを抽出
@@ -21,7 +21,7 @@ end
 close(fig1);
 
 % 1. .figファイルを開く
-fig2 = openfig( "2Rho-20~-15.fig", 'invisible'); % .figファイルを開く
+fig2 = openfig( "2Rho-20~-19.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 
 % 2. プロットされたデータを抽出
@@ -176,6 +176,6 @@ set(l(2), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 % set(l(6), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 %set(l(7), 'linewidth', 2, 'MarkerSize', 7, 'MarkerFaceColor', 'w');
 set(gca, 'linewidth', 2, 'FontSize', 35, 'FontName', 'Times New Roman', ....
-    'xTick',20:10:80,'yTick', 10.^(-5:1:1));
+    'xTick',24:1:30,'yTick', 10.^(-5:1:1));
 set(lb, 'FontSize', 35, 'FontName', 'Times New Roman');
-axis([20 80 10^-5 1]);
+axis([24 30 10^-5 1]);
