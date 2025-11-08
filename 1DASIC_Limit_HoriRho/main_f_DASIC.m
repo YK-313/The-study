@@ -7,7 +7,7 @@ startTime = clock;
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
 SIM.SNR     = 8;         % 信号対雑音電力比
-SIM.w_loop  = 3;            
+SIM.w_loop  = 4;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
 SIM.SIR     = -60;           % 希望信号対干渉電力比
@@ -22,7 +22,7 @@ SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.mode = 'DASIC1';    %DASICの段数
+SIM.mode = 'DASIC2';    %DASICの段数
 SIM.detmode='BCJR';     %BCJR,MLD(使わない)
 SIM.plot ='ResSi';     %Rho,ResSi 横軸を(rhoでプロットするか，残留SI平均電力で書くか
 
