@@ -125,12 +125,11 @@ SNR_dB = 10 * log10(SNR_linear);
     RX.s_total = RX.s_AA + RX.s_AB ;
    %% 1. AGC (自動利得制御) シミュレーション (変更なし)
     % 16-bit ADCのフルスケールを A_max = 1 として設定
-    A_max = 1; 
     max_val = max(abs(RX.s_total));
     
     % 信号がゼロでない場合にのみ利得を適用
     if max_val > 0
-        G_AGC = A_max / max_val;
+        G_AGC = SIM.A_max / max_val;
     else
         G_AGC = 1; 
     end
@@ -139,21 +138,14 @@ SNR_dB = 10 * log10(SNR_linear);
 %% 2. 16-bit ADC (Fixed-Point Designer を使用したシミュレーション)
 
     % --- 固定小数点形式の定義 ---
-    % WordLength=16 bit (B)
-    % Sign=true (符号付き)
-    % FractionLength=14 bit (A_max=1 のため、整数部と符号に2bitを使用)
     
-    % fiオブジェクトのデータタイプを定義
-    % Numerictype('Signedness', WordLength, FractionLength)
+
+    % Numerictype('Signedness', WordLength, FractionLength) 符号付きか選ぶ,bit制約,符号と整数部以外の長さ
     T = numerictype(true, 16, 14);
     
-    % 丸めモード: 'Nearest' (最も近い値に丸める) や 'Floor' などが一般的
-    F = fimath('RoundMode', 'nearest', 'OverflowMode', 'saturate'); 
-    % OverflowMode: 'saturate' (飽和、A_maxを超えたらA_maxに留める) を選択
+    %丸めモード'Nearest' (最も近い値に丸める)と飽和時の処理(飽和、A_maxを超えたらA_maxに留める)
+    F = fimath('RoundMode', 'nearest', 'OverflowMode', 'saturate');
 
-    % --- 量子化処理 ---
-    % fi(データ, Numerictype, Fimath) を使って固定小数点に変換
-    
     % 実部と虚部を個別に量子化 (RX.s_scaled は double)
     RX.s_quant_real_fi = fi(real(RX.s_scaled), T, F);
     RX.s_quant_imag_fi = fi(imag(RX.s_scaled), T, F);

@@ -24,6 +24,7 @@ G.Q = 4; %変調次数
 G.ml=log2(G.Q);
 SIM.mode = 'DASIC1';    % 自動切換えまたは手動切り替え (Auto,DASIC1,DASIC2)
 SIM.threshold = 28;      %自動切り替え時の残留SIの電力閾値
+SIM.A_max = 1 ; %ADCのフルスケール
 
 
  
