@@ -122,12 +122,56 @@ Xi_mat_AA = diag(sparse(Xi_vec_AA));
 SNR_linear = sum(abs(RX.s_AB).^2) / sum(abs(CH.n).^2);
 SNR_dB = 10 * log10(SNR_linear);
 %}
-   
- 
+    RX.s_total = RX.s_AA + RX.s_AB ;
+   %% 1. AGC (自動利得制御) シミュレーション (変更なし)
+    % 16-bit ADCのフルスケールを A_max = 1 として設定
+    A_max = 1; 
+    max_val = max(abs(RX.s_total));
+    
+    % 信号がゼロでない場合にのみ利得を適用
+    if max_val > 0
+        G_AGC = A_max / max_val;
+    else
+        G_AGC = 1; 
+    end
+    RX.s_scaled = RX.s_total * G_AGC;
+
+%% 2. 16-bit ADC (Fixed-Point Designer を使用したシミュレーション)
+
+    % --- 固定小数点形式の定義 ---
+    % WordLength=16 bit (B)
+    % Sign=true (符号付き)
+    % FractionLength=14 bit (A_max=1 のため、整数部と符号に2bitを使用)
+    
+    % fiオブジェクトのデータタイプを定義
+    % Numerictype('Signedness', WordLength, FractionLength)
+    T = numerictype(true, 16, 14);
+    
+    % 丸めモード: 'Nearest' (最も近い値に丸める) や 'Floor' などが一般的
+    F = fimath('RoundMode', 'nearest', 'OverflowMode', 'saturate'); 
+    % OverflowMode: 'saturate' (飽和、A_maxを超えたらA_maxに留める) を選択
+
+    % --- 量子化処理 ---
+    % fi(データ, Numerictype, Fimath) を使って固定小数点に変換
+    
+    % 実部と虚部を個別に量子化 (RX.s_scaled は double)
+    RX.s_quant_real_fi = fi(real(RX.s_scaled), T, F);
+    RX.s_quant_imag_fi = fi(imag(RX.s_scaled), T, F);
+    
+    % fiオブジェクトから double (MATLABの通常形式) に戻す
+    RX.s_quant_real = double(RX.s_quant_real_fi);
+    RX.s_quant_imag = double(RX.s_quant_imag_fi);
+
+    % 複素数信号を再構築
+    RX.s_quant = RX.s_quant_real + 1i * RX.s_quant_imag; 
+    
+    % FFTの入力として量子化後の信号を使用
+    RX.b = fft(RX.s_quant, fft_ptB)./sqrt(fft_ptB);
+     
 RX.bA = fft(RX.s_AA, fft_ptA)./sqrt(fft_ptA);%64個の受信シンボル
 RX.bB = fft(RX.s_AB, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
 RX.bN = fft(CH.n, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
-RX.b=RX.bA+RX.bB+RX.bN;%受信信号
+RX.b2=RX.bA+RX.bB;%受信信号
     % 受信電力計算（RX電力）
     ERR.rx_pow(idx_loop) = sum(abs(RX.b).^2);
 
@@ -136,6 +180,11 @@ RX.b=RX.bA+RX.bB+RX.bN;%受信信号
     RX.c=zeros(SIM.ndata,1);
     RX.c(1)=RX.b(1);
     RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %自己干渉除去
+   %% DASIC (周波数領域)
+    phi = TX.x(2:end,1) ./ TX.x(1:end-1,1);  % 位相シフトを計算
+    RX.c2=zeros(SIM.ndata,1);
+    RX.c2(1)=RX.b2(1);
+    RX.c2(2:SIM.ndata) = RX.b2(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %自己干渉除去
 
 if strcmp(SIM.mode ,'Auto')
     EstResidualSi = abs(RX.c(2:end)).^2 - (abs(Xi_vec_AB(2:SIM.ndata)).^2+abs(Xi_vec_AB(1:SIM.ndata-1)).^2) - 2*CH.N0; %DASIC後の信号電力から，所望信号と雑音成分に関する電力を減算し，残留SIの電力を得る
