@@ -1,5 +1,5 @@
 % 1. .figファイルを開く
-fig1 = openfig( "1Rho-20~-19.fig", 'invisible'); % .figファイルを開く
+fig1 = openfig( "rho-10.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 
 % 2. プロットされたデータを抽出
@@ -21,7 +21,7 @@ end
 close(fig1);
 
 % 1. .figファイルを開く
-fig2 = openfig( "2Rho-20~-19.fig", 'invisible'); % .figファイルを開く
+fig2 = openfig( "rho-20.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 
 % 2. プロットされたデータを抽出
@@ -42,9 +42,8 @@ end
 % 4. フィギュアを閉じる
 close(fig2);
 
-%{
 % 1. .figファイルを開く
-fig3 = openfig( "AutoSir-60Rho-30.fig",'invisible'); % .figファイルを開く
+fig3 = openfig( "rho-30.fig",'invisible'); % .figファイルを開く
 ax = gca; % 現在IC_BER.fig',の軸を取得
 
 % 2. プロットされたデータを抽出
@@ -66,7 +65,7 @@ end
 close(fig3);
 
 % 1. .figファイルを開く
-fig4 = openfig( "AutoSir-60Rho-40.fig", 'invisible'); % .figファイルを開く
+fig4 = openfig( "rho-40.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 
 % 2. プロットされたデータを抽出
@@ -88,7 +87,7 @@ end
 close(fig4);
 
 % 1. .figファイルを開く
-fig5 = openfig("ideal.fig", 'invisible'); % .figファイルを開く
+fig5 = openfig("HD.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 
 % 2. プロットされたデータを抽出
@@ -108,7 +107,7 @@ for i = 1:length(lines)
 end
 % 4. フィギュアを閉じる
 close(fig5);
-
+%{
 % 1. .figファイルを開く
 fig6 = openfig( "HD.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
@@ -159,23 +158,23 @@ figure('Position', [1, 71, 813, 725]);
 l(1) = semilogy(xData1, yData1, 'ro-');
 hold on
 l(2) = semilogy(xData2, yData2, 'bsquare-');
-% l(3) = semilogy(xData3, yData3, "Marker", "diamond", "Color","#EDB120");
-% l(4) = semilogy(xData4, yData4, "Marker", "^", "Color", "#77AC30");
-% l(5) = semilogy(xData5, yData5, 'k-');
-% l(6) = semilogy(xData6, yData6, 'k--');
+l(3) = semilogy(xData3, yData3, "Marker", "diamond", "Color","#EDB120");
+l(4) = semilogy(xData4, yData4, "Marker", "^", "Color", "#77AC30");
+l(5) = semilogy(xData5, yData5, 'k--');
+%l(6) = semilogy(xData6, yData6, 'k-');
 %l(7) = semilogy(xData7, yData7, 'ypentagram-');
 grid on;
-legend ('一段DASIC','二段DASIC','FontSize', 25,'FontName', 'Times New Roman','Interpreter','latex' )
-lb(1) = xlabel('残留SIの電力 (真値)','Interpreter','latex');
+legend ('$\rho=-10$ dB' ,'$\rho=-20$ dB' ,'$\rho=-30$ dB' ,'$\rho=-40$ dB''','HD','FontSize', 25,'FontName', 'Times New Roman','Interpreter','latex' )
+lb(1) = xlabel('E_b/N_0 [dB]');
 lb(2) = ylabel('BER');
 set(l(1), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 set(l(2), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
-% set(l(3), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
-% set(l(4), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
-% set(l(5), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
-% set(l(6), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
+set(l(3), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
+set(l(4), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
+set(l(5), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
+%set(l(6), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 %set(l(7), 'linewidth', 2, 'MarkerSize', 7, 'MarkerFaceColor', 'w');
 set(gca, 'linewidth', 2, 'FontSize', 35, 'FontName', 'Times New Roman', ....
-    'xTick',24:1:30,'yTick', 10.^-3:10.^-3:10^-2);
+    'xTick',0:2:14,'yTick', 10.^(-5:1:1));
 set(lb, 'FontSize', 35, 'FontName', 'Times New Roman');
-axis([24 30 10^-3 10^-2]);
+axis([0 14 10^-5 1]);
