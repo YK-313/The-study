@@ -34,8 +34,8 @@ BER = zeros(size(SIM.SNR));
 %%%% Task %%%%
 %%%%%%%%%%%%%%%
 SIM.nsamp   = 10^SIM.w_loop; 
-for idx = 1:length(SIM.SNR)
-%parfor idx = 1:length(SIM.SNR)
+%for idx = 1:length(SIM.SNR)
+parfor idx = 1:length(SIM.SNR)
     RES = main_task_f_DASIC(SIM.SNR(idx),idx,SIM,G);  
     BER(idx) = RES.BER;                       
 end
