@@ -115,24 +115,41 @@ Xi_mat_AA = diag(sparse(Xi_vec_AA));
     RX.s_AA=H_circ_AA*TX.sA;
     RX.s_AB=H_circ_AB*TX.sB;    
     % 雑音の生成
-    CH.f = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
+    CH.f = (randn(SIM.over*SIM.ndata, 1) + 1i * randn(SIM.over*SIM.ndata, 1)) * sqrt(CH.N0 / 2);
     CH.n =  ifft(CH.f, fft_ptB).*sqrt(fft_ptB);
-%{
+
 % SNRの計算 (dBスケール)
-SNR_linear = sum(abs(RX.s_AB).^2) / sum(abs(CH.n).^2);
-SNR_dB = 10 * log10(SNR_linear);
-%}
-    RX.s_total = RX.s_AA + RX.s_AB ;
+% SNR_linear = sum(abs(RX.s_AB).^2) / sum(abs(CH.n).^2);
+% SNR_dB = 10 * log10(SNR_linear);
+
+    RX.s_total = RX.s_AA + RX.s_AB+CH.n ;
+
    %% 1. AGC (自動利得制御) シミュレーション
     max_val = max(abs(RX.s_total));
+    max_valA = max(abs(RX.s_AA));
+    max_valB = max(abs(RX.s_AB));
     
     % 信号がゼロでない場合にのみ利得を適用
     if max_val > 0
-        G_AGC = SIM.A_max / max_val;
+        G_Agc = SIM.A_max / max_val;
     else
-        G_AGC = 1; 
+        G_Agc = 1; 
     end
-    RX.s_scaled = RX.s_total * G_AGC;
+    RX.s_scaled = RX.s_total * G_Agc;
+
+    if max_valA > 0
+        G_AgcA = SIM.A_max / max_valA;
+    else
+        G_AgcA = 1; 
+    end
+    RX.s_scaledA = RX.s_AA * G_AgcA;
+
+    if max_valB > 0
+        G_AgcB = SIM.A_max / max_valB;
+    else
+        G_AgcB = 1; 
+    end
+    RX.s_scaledB = RX.s_AB * G_AgcB;
 
 %% 2. 16-bit ADC (Fixed-Point Designer を使用したシミュレーション)
 
@@ -145,21 +162,42 @@ SNR_dB = 10 * log10(SNR_linear);
     % 実部と虚部を個別に量子化 (RX.s_scaled は double)
     RX.s_quant_real_fi = fi(real(RX.s_scaled), T, F);
     RX.s_quant_imag_fi = fi(imag(RX.s_scaled), T, F);
+
+    RX.s_quant_real_fiA = fi(real(RX.s_scaledA), T, F);
+    RX.s_quant_imag_fiA = fi(imag(RX.s_scaledA), T, F);
+
+    RX.s_quant_real_fiB = fi(real(RX.s_scaledB), T, F);
+    RX.s_quant_imag_fiB = fi(imag(RX.s_scaledB), T, F);
     
     % fiオブジェクトから double (MATLABの通常形式) に戻す
     RX.s_quant_real = double(RX.s_quant_real_fi);
     RX.s_quant_imag = double(RX.s_quant_imag_fi);
 
+    RX.s_quant_realA = double(RX.s_quant_real_fiA);
+    RX.s_quant_imagA = double(RX.s_quant_imag_fiA);
+
+    RX.s_quant_realB = double(RX.s_quant_real_fiB);
+    RX.s_quant_imagB = double(RX.s_quant_imag_fiB);
+
     % 複素数信号を再構築
     RX.s_quant = RX.s_quant_real + 1i * RX.s_quant_imag; 
+    RX.s_quantA = RX.s_quant_realA + 1i * RX.s_quant_imagA; 
+    RX.s_quantB = RX.s_quant_realB + 1i * RX.s_quant_imagB; 
     
-    % FFTの入力として量子化後の信号を使用
-    RX.b = fft(RX.s_quant, fft_ptB)./sqrt(fft_ptB);
+    % FFTの入力として量子化後の信号を使用(AGCのスケール調整を除算によって元に戻す)
+    RX.b = fft(RX.s_quant, fft_ptB)./sqrt(fft_ptB)./G_Agc;
+    RX.bA = fft(RX.s_quantA, fft_ptB)./sqrt(fft_ptB)./G_AgcA;
+    RX.bB = fft(RX.s_quantB, fft_ptB)./sqrt(fft_ptB)./G_AgcB;
+    
+    %検証用
+    EstTxA=RX.bA./Xi_vec_AA./G_AgcA;
+    EstTxB=RX.bB./Xi_vec_AB./G_AgcB;
+
      
-RX.bA = fft(RX.s_AA, fft_ptA)./sqrt(fft_ptA);%64個の受信シンボル
-RX.bB = fft(RX.s_AB, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
-RX.bN = fft(CH.n, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
-RX.b2=RX.bA+RX.bB;%受信信号
+RX.bA2 = fft(RX.s_AA, fft_ptA)./sqrt(fft_ptA);%64個の受信シンボル
+RX.bB2 = fft(RX.s_AB, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
+RX.bN2 = fft(CH.n, fft_ptB)./sqrt(fft_ptB);%64個の受信シンボル
+RX.b2=RX.bA2+RX.bB2+RX.bN2;%受信信号
     % 受信電力計算（RX電力）
     ERR.rx_pow(idx_loop) = sum(abs(RX.b).^2);
 
