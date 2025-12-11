@@ -7,16 +7,16 @@ startTime = clock;
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
 SIM.SNR     = 10;         % 信号対雑音電力比
-SIM.w_loop  = 6;            
+SIM.w_loop  = 4;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = -100;           % 希望信号対干渉電力比
+SIM.SIR     = -60;           % 希望信号対干渉電力比
 SIM.rho     = -10;
 SIM.nsym    = 64;           % シンボル数         
 SIM.ndata = SIM.nsym;
-SIM.over = 32;
-SIM.delayA=5:5:35;%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
-SIM.delayB=32;
+SIM.over = 64;
+SIM.delayA=[1 5];%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
+SIM.delayB=64;
 SIM.int=1; %インタリーバ 1:あり,2:なし
 SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数

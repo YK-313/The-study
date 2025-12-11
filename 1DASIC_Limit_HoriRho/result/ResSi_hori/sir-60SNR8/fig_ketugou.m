@@ -156,17 +156,17 @@ close(fig7);
 %}
 
 figure('Position', [1, 71, 813, 725]);
-l(1) = semilogy(xData1, yData1, 'ro-');
+l(1) = plot(xData1, yData1, 'ro-');
 hold on
-l(2) = semilogy(xData2, yData2, 'bsquare-');
+l(2) = plot(xData2, yData2, 'bsquare-');
 % l(3) = semilogy(xData3, yData3, "Marker", "diamond", "Color","#EDB120");
 % l(4) = semilogy(xData4, yData4, "Marker", "^", "Color", "#77AC30");
 % l(5) = semilogy(xData5, yData5, 'k-');
 % l(6) = semilogy(xData6, yData6, 'k--');
 %l(7) = semilogy(xData7, yData7, 'ypentagram-');
 grid on;
-legend ('一段DASIC','二段DASIC','FontSize', 25,'FontName', 'Times New Roman','Interpreter','latex' )
-lb(1) = xlabel('残留SIの電力 (真値)','Interpreter','latex');
+legend ('One-stage DASIC','Two-stage DASIC','FontSize', 25,'FontName', 'Times New Roman','Interpreter','latex' )
+lb(1) = xlabel('Residual SI power (true value)','Interpreter','latex');
 lb(2) = ylabel('BER');
 set(l(1), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 set(l(2), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
@@ -176,6 +176,6 @@ set(l(2), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 % set(l(6), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 %set(l(7), 'linewidth', 2, 'MarkerSize', 7, 'MarkerFaceColor', 'w');
 set(gca, 'linewidth', 2, 'FontSize', 35, 'FontName', 'Times New Roman', ....
-    'xTick',24:1:30,'yTick', 10.^-3:10.^-3:10^-2);
+    'xTick',24:1:30,'yTick', 0.004:0.001:0.008);
 set(lb, 'FontSize', 35, 'FontName', 'Times New Roman');
-axis([24 30 10^-3 10^-2]);
+axis([24 30 0.004 0.008]);

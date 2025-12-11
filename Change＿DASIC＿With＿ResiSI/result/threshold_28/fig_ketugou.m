@@ -165,7 +165,7 @@ l(5) = semilogy(xData5, yData5, 'k--');
 %l(7) = semilogy(xData7, yData7, 'ypentagram-');
 grid on;
 legend ('$\rho=-10$ dB' ,'$\rho=-20$ dB' ,'$\rho=-30$ dB' ,'$\rho=-40$ dB','HD','FontSize', 25,'FontName', 'Times New Roman','Interpreter','latex' )
-lb(1) = xlabel('E_b/N_0 [dB]');
+lb(1) = xlabel('$E_\mathrm{b}/N_0$ [dB]','FontName','Times New Roman','Interpreter','latex');
 lb(2) = ylabel('BER');
 set(l(1), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
 set(l(2), 'linewidth', 2, 'MarkerSize', 20, 'MarkerFaceColor', 'none');
