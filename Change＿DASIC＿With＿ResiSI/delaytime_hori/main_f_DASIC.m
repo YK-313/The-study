@@ -7,22 +7,23 @@ startTime = clock;
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
 SIM.SNR     = 10;         % 信号対雑音電力比
-SIM.w_loop  = 4;            
+SIM.w_loop  = 5;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = -60;           % 希望信号対干渉電力比
-SIM.rho     = -10;
+SIM.SIR     = -40;           % 希望信号対干渉電力比
+SIM.rho     = -3;
 SIM.nsym    = 64;           % シンボル数         
 SIM.ndata = SIM.nsym;
 SIM.over = 64;
 SIM.delayA=[1 5];%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
+%SIM.delayA= 5:5:35;
 SIM.delayB=64;
 SIM.int=1; %インタリーバ 1:あり,2:なし
 SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.mode = 'Auto';    % 自動切換えまたは手動切り替え (Auto,DASIC1,DASIC2)
+SIM.mode = 'DASIC1';    % 自動切換えまたは手動切り替え (Auto,DASIC1,DASIC2)
 SIM.threshold = 28;      %自動切り替え時の残留SIの電力閾値
 
 
