@@ -10,14 +10,15 @@ SIM.SNR     = 8;         % 信号対雑音電力比
 SIM.w_loop  = 3;            
 SIM.nsamp   = 10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = -60;           % 希望信号対干渉電力比
-SIM.rho     = -15;        
+SIM.SIR     = -30;           % 希望信号対干渉電力比
+SIM.rho     = -3;        
+SIM.Nrho    =-3;
 SIM.ndata = 64; % シンボル数  
 SIM.over = 2;
 SIM.delayA=1;%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
 SIM.delayB=2;
 SIM.int=1; %インタリーバ 1:あり,2:なし
-SIM.AA=2;%AA間パス数
+SIM.AA=3;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
@@ -88,12 +89,12 @@ end
         delay_profile_AA_rho=zeros(size(delay_profile_AA_s));
         rho_sum=0;
             for rr = 2:SIM.AA
-             rho = 10^( (SIM.rho-5*(rr-2)) /10); %3波目以降-5dB
+             rho = 10^( (SIM.rho+SIM.Nrho*(rr-2)) /10); %3波目以降-5dB
              rho_sum = rho_sum+rho;
             end
         delay_profile_AA_rho(1) =delay_profile_AA_s(1)*sqrt(1/( 1 + rho_sum ) );
          for dd=2:SIM.AA
-                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (SIM.rho-5*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
+                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (SIM.rho+SIM.Nrho*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
          end
     end
         
@@ -180,7 +181,8 @@ powN=sum(abs(RX.bN).^2);
     power.dDNcross= 2*real(conj( RX.bB(2:SIM.ndata)-RX.bB(1:SIM.ndata-1).*phi ).* ( RX.bN(2:SIM.ndata)-RX.bN(1:SIM.ndata-1).*phi ) ); %所望信号と雑音のクロス項
 
     %% 期待値に収束した場合の平均電力
-    power.tSI(1:SIM.ndata-1,1) = 2*abs(delay_profile_AA_sir(2))^2*(1-cos(2*pi/fft_ptA));
+    %power.tSI(1:SIM.ndata-1,1) = 2*abs(delay_profile_AA_sir(2))^2*(1-cos(2*pi/fft_ptA)); 2波
+    power.tSI(1:SIM.ndata-1,1)  = 4*abs(delay_profile_AA_sir(2)).^2.*(sin(pi/fft_ptA))^2+4*abs(delay_profile_AA_sir(3)).^2.*(sin(pi/fft_ptA)^2);
     power.tDesired =abs(Xi_vec_AB(2:SIM.ndata)).^2+abs(Xi_vec_AB(1:SIM.ndata-1)).^2 ;
     power.tNoise= abs(RX.bN(2:SIM.ndata)-RX.bN(1:SIM.ndata-1)).^2; %2N_0になるはず
     power.tAll = power.tSI + power.tDesired + power.tNoise;

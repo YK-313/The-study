@@ -65,12 +65,12 @@ end
         delay_profile_AA_rho=zeros(size(delay_profile_AA_s));
         rho_sum=0;
             for rr = 2:SIM.AA
-             rho = 10^( (SIM.rho-5*(rr-2)) /10); %3波目以降-5dB
+             rho = 10^( (SIM.rho+SIM.Nrho*(rr-2)) /10); %3波目以降-3dB
              rho_sum = rho_sum+rho;
             end
         delay_profile_AA_rho(1) =delay_profile_AA_s(1)*sqrt(1/( 1 + rho_sum ) );
          for dd=2:SIM.AA
-                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (SIM.rho-5*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
+                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (SIM.rho+SIM.Nrho*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
          end
     end
         
@@ -138,7 +138,7 @@ RX.b=RX.bA+RX.bB+RX.bN;%受信信号
     RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %自己干渉除去
 
 if strcmp(SIM.mode ,'Auto')
-    EstResidualSi = abs(RX.c(2:end)).^2 - (abs(Xi_vec_AB(2:SIM.ndata)).^2+abs(Xi_vec_AB(1:SIM.ndata-1)).^2) - 2*CH.N0; %DASIC後の信号電力から，所望信号と雑音成分に関する電力を減算し，残留SIの電力を得る
+    EstResidualSi = mean(abs(RX.c(2:end)).^2) - mean(abs(Xi_vec_AB(2:SIM.ndata)).^2+abs(Xi_vec_AB(1:SIM.ndata-1)).^2) - 2*CH.N0; %DASIC後の信号電力から，所望信号と雑音成分に関する電力を減算し，残留SIの電力を得る
     if EstResidualSi <= SIM.threshold
         mode = 'DASIC1';
     else
@@ -157,14 +157,14 @@ end
 switch(mode)
     case {'DASIC1'}
    %% BCJR
-        BCJR1.alpha = zeros(4,length(TX.x))-1000000;
+        BCJR1.alpha = zeros(4,length(TX.x))-10000000;
         BCJR1.alpha(1,1) = log(1); %log取ると1→確率100%
         BCJR1.alpha(1,2) = log(1); %log取ると1→確率100%
-        BCJR1.beta = zeros(4,length(TX.x))-1000000;
+        BCJR1.beta = zeros(4,length(TX.x))-10000000;
         BCJR1.beta(1,end) = log(1);
         BCJR1.beta(1,end-1) = log(1);
 
-        BCJR1.Gamma= zeros(4,4,length(TX.x)-1)-1000000;
+        BCJR1.Gamma= zeros(4,4,length(TX.x)-1)-10000000;
         TX.Xi_vec_AB=Xi_vec_AB;
         TX.phi=phi;
 
@@ -185,7 +185,8 @@ switch(mode)
       end
       BCJR1.alpha(sigj,xx+1) = LOG_MAP(BCJR1.aaa,trel1.num_state);
     end  
-
+        BCJR1.max_val = max(BCJR1.alpha(:, xx+1));
+        BCJR1.alpha(:, xx+1) = BCJR1.alpha(:, xx+1) - BCJR1.max_val;
  end
  
  
@@ -201,7 +202,9 @@ switch(mode)
    
          BCJR1.beta(sigi,xx-1) = LOG_MAP(BCJR1.bbb,trel1.num_state );
    
-     end  
+     end 
+        BCJR1.max_val = max( BCJR1.beta(:, xx-1));
+        BCJR1.beta(:, xx-1) =  BCJR1.beta(:, xx-1) -  BCJR1.max_val;
 
   for idx_in = 1:trel1.num_in
 
@@ -261,14 +264,14 @@ switch mode
     case {'DASIC2'}
 %% 二段用BCJR
 
-        BCJR2.alpha = zeros(16,length(TX.x))-1000000;
+        BCJR2.alpha = zeros(16,length(TX.x))-10000000;
         BCJR2.alpha(1,1) = log(1); %log取ると1→確率100%
         BCJR2.alpha(1,2) = log(1); %log取ると1→確率100%
-        BCJR2.beta = zeros(16,length(TX.x))-1000000;
+        BCJR2.beta = zeros(16,length(TX.x))-10000000;
         BCJR2.beta(1,end) = log(1);
         BCJR2.beta(1,end-1) = log(1);
 
-        BCJR2.Gamma= zeros(16,16,length(TX.x)-1)-1000000;
+        BCJR2.Gamma= zeros(16,16,length(TX.x)-1)-10000000;
         TX.Xi_vec_AB=Xi_vec_AB;
         TX.phi=phi;
 

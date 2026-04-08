@@ -65,12 +65,12 @@ end
         delay_profile_AA_rho=zeros(size(delay_profile_AA_s));
         rho_sum=0;
             for rr = 2:SIM.AA
-             rho = 10^( (Rho-5*(rr-2)) /10); %3îgñ⁄à»ç~-5dB
+             rho = 10^( (Rho+SIM.Nrho*(rr-2)) /10); 
              rho_sum = rho_sum+rho;
             end
         delay_profile_AA_rho(1) =delay_profile_AA_s(1)*sqrt(1/( 1 + rho_sum ) );
          for dd=2:SIM.AA
-                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (Rho-5*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
+                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (Rho+SIM.Nrho*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
          end
     end
         

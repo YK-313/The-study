@@ -10,20 +10,21 @@ SIM.SNR     = 0:2:14;         % 信号対雑音電力比
 SIM.w_loop  = 5;            
 SIM.nsamp   = 5*10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = -80;           % 希望信号対干渉電力比
-SIM.rho     = -3;
+SIM.SIR     = -40;           % 希望信号対干渉電力比
+SIM.rho     = -3; %2波目と直接波の電力比
+SIM.Nrho    = -3; %3波目以降の減衰電力
 SIM.nsym    = 64;           % シンボル数         
 SIM.ndata = SIM.nsym;
 SIM.over = 2;
 SIM.delayA=1;%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
 SIM.delayB=2;
 SIM.int=1; %インタリーバ 1:あり,2:なし
-SIM.AA=2;%AA間パス数
+SIM.AA=3;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
 SIM.mode = 'Auto';    % 自動切換えまたは手動切り替え (Auto,DASIC1,DASIC2)
-SIM.threshold = 28;      %自動切り替え時の残留SIの電力閾値
+SIM.threshold = 4;      %自動切り替え時の残留SIの電力閾値
 
 
  
