@@ -373,25 +373,52 @@ switch SIM.mode
     case 'cn_est'
 EST.Xi=RX.b(1:SIM.ndata)./TX.x(:,1);%所望信号も雑音扱いでxiAA推定
     case{'cn_est1','cn_est2'}
-EST.Xi=(RX.b(1:SIM.ndata)-Xi_vec_AB(1:SIM.ndata).*xbhat)./TX.x(:,1);%所望信号も雑音扱いでxiAA推定
+EST.Xi=(RX.b(1:SIM.ndata)-Xi_vec_AB(1:SIM.ndata).*xbhat)./TX.x(:,1);%推定した所望信号を減算して
 end
+
+%% 旧チャネル推定用コード
 % EST.h1 = ifft(EST.Xi, SIM.ndata);%64ifft
 % EST.h2 = ifft(EST.Xi, fft_ptA);%128ifft(0パティング)
 % EST.h3 = ifft([EST.Xi;EST.Xi], fft_ptA);%128ifft(1~64をコピー)
-EST.h = ifft([EST.Xi;flipud(EST.Xi)], fft_ptA);%128ifft(1~64を逆順にして64~1をコピー)
-EST.h_1=EST.h(2)*2;%h1を推定(おそらく2倍サンプリング，2パス時のみ有効，理想的にはh1と完全一致)
-EST.h_0=EST.Xi(1)-EST.h_1;
-Window = zeros (length(EST.h),1);
-Window(1:2) = 1;
-EST.hTilde = EST.h.*Window;
-EST.NewXi = fft(EST.hTilde,SIM.ndata);
+% EST.h = ifft([EST.Xi;flipud(EST.Xi)], fft_ptA);%128ifft(1~64を逆順にして64~1をコピー)
+% EST.h_1=EST.h(2)*2;%h1を推定(おそらく2倍サンプリング，2パス時のみ有効，理想的にはh1と完全一致)
+% EST.h_0=EST.Xi(1)-EST.h_1;
+% Window = zeros (length(EST.h),1);
+% Window(1:2) = 1;
+% EST.hTilde = EST.h.*Window;
+% EST.NewXi = fft(EST.hTilde,SIM.ndata);
+
+%% 帯域制限(Virtual Subcarrier)を考慮した時間領域チャネル復元
+
+L = SIM.delayA * num_of_paths_AA; % 有効な最大遅延サンプル数 (これ以降の時間は0)
+F_matrix = fft(eye(fft_ptA)); % 128ポイントのFFT行列を生成
+F_partial = F_matrix(1:SIM.ndata, 1:L);
+F_H = F_partial';% 共役転置を取得
+
+%MMSE
+% h_est_time_L_MMSE = (F_H * F_partial + CH.N0 * eye(L)) \ (F_H * EST.Xi); % pinv(F_partial) の代わりに、MMSE基準の連立方程式を解く
+% h_est_time_128_MMSE = [h_est_time_L_MMSE; zeros(fft_ptA - L, 1)]; % 128ポイントのインパルス応答として再構成 (L以降はゼロ詰め)
+% H_est_clean_128_MMSE = fft(h_est_time_128_MMSE, fft_ptA); % 128ポイントFFTで周波数領域へ
+% EST.XiHat = H_est_clean_128_MMSE(1:SIM.ndata); %最終的なチャネル推定値 (BCJRなどのデータ復号用)
+
+%LS
+ h_est_time_L = pinv(F_partial) * EST.Xi; % 擬似逆行列(pinv)を用いて、64個の周波数成分からL個の時間タップを逆算
+ h_est_time_128 = [h_est_time_L; zeros(fft_ptA - L, 1)]; % 128ポイントのインパルス応答として再構成 (L以降はゼロ詰め＝完全な窓関数)
+ H_est_clean_128 = fft(h_est_time_128, fft_ptA);% 128ポイントFFTで周波数領域へ
+ EST.XiHat = H_est_clean_128(1:SIM.ndata);% 3. 最終的なチャネル推定値 (BCJRなどのデータ復号用)
+
+%比較用
+% True_Channel = Xi_vec_AB(1:SIM.ndata);
+% MSE_LS = mean(abs(True_Channel - EstXiAB_LS).^2);
+% MSE_DFT = mean(abs(True_Channel - EstXiAB).^2); % pinvのみ（雑音で爆発する版）
+% MSE_MMSE = mean(abs(True_Channel - EstXiABMMSE).^2);
 
 %% SIのレプリカを減算し，復号
 switch SIM.mode
     case {'cn_est','cn_est1','cn_est2'}
 switch SIM.detmode
     case'MLD'
-tilde_xb=(RX.b-EST.NewXi.*TX.x(:,1))./Xi_vec_AB;%SIのシンボル減算し，xiABで割る
+tilde_xb=(RX.b-EST.XiHat.*TX.x(:,1))./Xi_vec_AB;%SIのシンボル減算し，xiABで割る
 [~,rxalp]   = min(abs(tilde_xb(:)-constellation),[],2); %ユークリッド距離が最小のM進数の記号を探索
 rxdata_p      = alp2bit(rxalp,:); % 記号をビットに変換
 for i=1:length(rxdata_p)
@@ -402,7 +429,7 @@ end
 det.deint=randdeintrlv(det.orig(5:end-4),1);
 det.decode=APPDec(zeros(60,1), det.deint)>0;
     case 'BCJR'
-tilde_xb=RX.b-EST.NewXi.*TX.x(:,1);
+tilde_xb=RX.b-EST.XiHat.*TX.x(:,1);
 %%BCJR
   BCJR.alpha = zeros(4,length(TX.x))-1000000;
         BCJR.alpha(1,1) = log(1); %log取ると1→確率100%

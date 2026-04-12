@@ -143,12 +143,12 @@ RX.b=RX.bA+RX.bB+RX.bN;%受信信号
     %% パイロットによるチャネル推定
     EstXiAB_LS = RX.Ap(1:SIM.ndata)./pilot.x;
     %% 2. 帯域制限(Virtual Subcarrier)を考慮した時間領域チャネル復元
-    
+
     L = SIM.delayB * num_of_paths_AB; % 有効な最大遅延サンプル数 (これ以降の時間はパスが存在しないとする)
     F_matrix = fft(eye(fft_ptB));  % 128ポイントのFFT行列を生成
     F_partial = F_matrix(1:SIM.ndata, 1:L); 
     alpha = CH.N0;
-    
+
     F_H = F_partial';% 共役転置を取得
 
     % pinv(F_partial) の代わりに、MMSE基準の連立方程式を解く
