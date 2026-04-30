@@ -10,7 +10,7 @@ SIM.SNR     = 0:2:14;         % 信号対雑音電力比
 SIM.w_loop  = 5;            
 SIM.nsamp   = 5*10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = -100;           % 希望信号対干渉電力比
+SIM.SIR     = -60;           % 希望信号対干渉電力比
 SIM.rho     = -3;
 SIM.nsym    = 64;           % シンボル数         
 SIM.ndata = SIM.nsym;
@@ -22,7 +22,7 @@ SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.mode = 'cn_est';    %チャネル推定のためのDASICの段数 (cn_est,cn_est1,cn_est2) ※cn_estはDASICなし
+SIM.mode = 'cn_est2';    %チャネル推定のためのDASICの段数 (cn_est,cn_est1,cn_est2) ※cn_estはDASICなし
 SIM.detmode='BCJR';     %BCJR,MLD(使わない)
 
 
