@@ -21,7 +21,7 @@ for state = 1:trel.num_state
 end         %state
 %ここにDASICの出力
 
-trel.outputs = complex(trel.outputs);%DASIC出力\tildex_B[k] 5点
+trel.outputs = complex(trel.outputs);%DASIC出力\tildex_B[k] 4点
 trel.dec_alg = dec_alg;
 trel.N0      = CH.N0;
 trel.terminated = term;
