@@ -65,12 +65,12 @@ end
         delay_profile_AA_rho=zeros(size(delay_profile_AA_s));
         rho_sum=0;
             for rr = 2:SIM.AA
-             rho = 10^( (SIM.rho-5*(rr-2)) /10); %3波目以降-5dB
+             rho = 10^( (SIM.rho+SIM.Nrho*(rr-2)) /10); %3波目以降-5dB
              rho_sum = rho_sum+rho;
             end
         delay_profile_AA_rho(1) =delay_profile_AA_s(1)*sqrt(1/( 1 + rho_sum ) );
          for dd=2:SIM.AA
-                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (SIM.rho-5*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
+                 delay_profile_AA_rho(dd) =delay_profile_AA_s(dd)*sqrt(10^( (SIM.rho+SIM.Nrho*(dd-2))/10)*abs(delay_profile_AA_rho(1))^2);
          end
     end
         
@@ -155,232 +155,234 @@ end
 switch(SIM.mode)
     case {'xb_est'}
             %% BCJR(DASICなしで所望信号推定)
-          BCJR.alpha = zeros(4,length(TX.x))-1000000;
+                BCJR.alpha = zeros(4,length(TX.x)) - 1e10;
                 BCJR.alpha(1,1) = log(1); %log取ると1→確率100%
                 BCJR.alpha(1,2) = log(1); %log取ると1→確率100%
-                BCJR.beta = zeros(4,length(TX.x))-1000000;
+                BCJR.beta = zeros(4,length(TX.x)) - 1e10;
                 BCJR.beta(1,end) = log(1);
                 BCJR.beta(1,end-1) = log(1);
-        
-                BCJR.Gamma= zeros(4,4,length(TX.x)-1)-1000000;
-                TX.Xi_vec_AB=Xi_vec_AB;
-        
-         for xx = 2:SIM.ndata-1
-             trel = BCJRTrellis(TX,xx,CH,G,0,1); 
-        
-            for idx_in = 1:trel.num_in  
-             for sigi=1:trel.num_state %状態i
-                   BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.b(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
-              end
-            end
-           
-            for sigj = 1:trel.num_state%状態j 
-               BCJR.aaa = zeros(trel.num_state,1);
-             for sigi=1:trel.num_state %状態i
-                  BCJR.aaa(sigi)=BCJR.alpha(sigi,xx)+BCJR.Gamma(sigi,sigj,xx);
-        
-              end
-              BCJR.alpha(sigj,xx+1) = LOG_MAP(BCJR.aaa,trel.num_state);
-            end  
-        
-         end
-         
-         
-         for xx = SIM.ndata:-1:2
-             
-             for sigi = 1:trel.num_state%状態i
-                BCJR.bbb = zeros(trel.num_state,1);
-                for sigj=1:trel.num_state %状態j
-        
-                  BCJR.bbb(sigj)=BCJR.beta(sigj,xx)+BCJR.Gamma(sigi,sigj,xx-1);
-        
+                
+                BCJR.Gamma = zeros(4,4,length(TX.x)-1) - 1e10;
+                TX.Xi_vec_AB = Xi_vec_AB;
+                
+                % --- 前向き処理 (alpha) ---
+                for xx = 2:SIM.ndata-1
+                    trel = BCJRTrellis(TX,xx,CH,G,0,1); 
+                
+                    for idx_in = 1:trel.num_in  
+                        for sigi=1:trel.num_state %状態i
+                            BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.b(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
+                        end
+                    end
+                   
+                    for sigj = 1:trel.num_state%状態j 
+                        BCJR.aaa = zeros(trel.num_state,1);
+                        for sigi=1:trel.num_state %状態i
+                            BCJR.aaa(sigi)=BCJR.alpha(sigi,xx)+BCJR.Gamma(sigi,sigj,xx);
+                        end
+                        BCJR.alpha(sigj,xx+1) = LOG_MAP(BCJR.aaa,trel.num_state);
+                    end  
+                    
+                    % 【追加】alphaの規格化（最大値を0にシフト）
+                    BCJR.max_alpha = max(BCJR.alpha(:, xx+1));
+                    BCJR.alpha(:, xx+1) = BCJR.alpha(:, xx+1) - BCJR.max_alpha;
                 end
-           
-                 BCJR.beta(sigi,xx-1) = LOG_MAP(BCJR.bbb,trel.num_state );
-           
-             end  
-        
-          for idx_in = 1:trel.num_in
-        
-            
-               for sigi = 1:trel.num_state
-                  
-                   state = trel.next_state(sigi,idx_in)+1;
-                   BCJR.L0(sigi) = BCJR.Gamma(sigi,state,xx-1)+BCJR.beta(state,xx)+BCJR.alpha(sigi,xx-1);
-              
-               end
-            
-               BCJR.LL(idx_in) = LOG_MAP(BCJR.L0,trel.num_state );
-          end
-           %%%%%%%%%%%%%%%%%%
-              BCJR.LLL1 = BCJR.LL(3);
-                  log_MAP = log(1+exp(-1*(abs( BCJR.LL(3)- BCJR.LL(4)))));
+                
+                % --- 後ろ向き処理 (beta) ---
+                for xx = SIM.ndata:-1:2
+                    for sigi = 1:trel.num_state%状態i
+                        BCJR.bbb = zeros(trel.num_state,1);
+                        for sigj=1:trel.num_state %状態j
+                            BCJR.bbb(sigj)=BCJR.beta(sigj,xx)+BCJR.Gamma(sigi,sigj,xx-1);
+                        end
+                        BCJR.beta(sigi,xx-1) = LOG_MAP(BCJR.bbb,trel.num_state );
+                    end  
+                    
+                    % 【追加】betaの規格化（最大値を0にシフト）
+                    BCJR.max_beta = max(BCJR.beta(:, xx-1));
+                    BCJR.beta(:, xx-1) = BCJR.beta(:, xx-1) - BCJR.max_beta;
+                
+                    for idx_in = 1:trel.num_in
+                        for sigi = 1:trel.num_state
+                            state = trel.next_state(sigi,idx_in)+1;
+                            BCJR.L0(sigi) = BCJR.Gamma(sigi,state,xx-1)+BCJR.beta(state,xx)+BCJR.alpha(sigi,xx-1);
+                        end
+                        BCJR.LL(idx_in) = LOG_MAP(BCJR.L0,trel.num_state );
+                    end
+                    
+                    %%%%%%%%%%%%%%%%%%
+                    BCJR.LLL1 = BCJR.LL(3);
+                    log_MAP = log(1+exp(-1*(abs( BCJR.LL(3)- BCJR.LL(4)))));
                     if BCJR.LL(4)>BCJR.LL(3)
-                         BCJR.LLL1 = BCJR.LL(4);
+                        BCJR.LLL1 = BCJR.LL(4);
                     end
-                      BCJR.LLL1 = BCJR.LLL1+log_MAP;
-         
-              BCJR.LLL2 = BCJR.LL(1);
-                  log_MAP = log(1+exp(-1*(abs(BCJR.LL(1)-BCJR.LL(2)))));
+                    BCJR.LLL1 = BCJR.LLL1+log_MAP;
+                
+                    BCJR.LLL2 = BCJR.LL(1);
+                    log_MAP = log(1+exp(-1*(abs(BCJR.LL(1)-BCJR.LL(2)))));
                     if BCJR.LL(2)>BCJR.LL(1)
-                         BCJR.LLL2 = BCJR.LL(2);
+                        BCJR.LLL2 = BCJR.LL(2);
                     end
-                      BCJR.LLL2 = BCJR.LLL2+log_MAP;
-        
-              BCJR.LLL3 = BCJR.LL(2);
-                  log_MAP = log(1+exp(-1*(abs(BCJR.LL(2)-BCJR.LL(4)))));
+                    BCJR.LLL2 = BCJR.LLL2+log_MAP;
+                
+                    BCJR.LLL3 = BCJR.LL(2);
+                    log_MAP = log(1+exp(-1*(abs(BCJR.LL(2)-BCJR.LL(4)))));
                     if BCJR.LL(4)>BCJR.LL(2)
-                         BCJR.LLL3 = BCJR.LL(4);
+                        BCJR.LLL3 = BCJR.LL(4);
                     end
-                      BCJR.LLL3 = BCJR.LLL3+log_MAP;
-         
-              BCJR.LLL4 = BCJR.LL(1);
-                  log_MAP = log(1+exp(-1*(abs(BCJR.LL(1)-BCJR.LL(3)))));
+                    BCJR.LLL3 = BCJR.LLL3+log_MAP;
+                
+                    BCJR.LLL4 = BCJR.LL(1);
+                    log_MAP = log(1+exp(-1*(abs(BCJR.LL(1)-BCJR.LL(3)))));
                     if BCJR.LL(3)>BCJR.LL(1)
-                         BCJR.LLL4 = BCJR.LL(3);
+                        BCJR.LLL4 = BCJR.LL(3);
                     end
-                      BCJR.LLL4 = BCJR.LLL4+log_MAP;
-            %%%%%%%%%%%%%%%%%%%%
-             BCJR.L(2*(xx-1)-1,1) = BCJR.LLL1-BCJR.LLL2;%ooビットの左 LLL1>LLL2→1
-             BCJR.L(2*(xx-1),1) = BCJR.LLL3-BCJR.LLL4;%ooビットの右
-         end
-        %% BCJRからの判定
-        if intrlv==1
-        BCJR.a=randdeintrlv(BCJR.L(3:end-4),1);
-        else
-        BCJR.a=BCJR.L(3:end-4);
-        end
-         BCJR.decode_bhat=APPDec(zeros(60,1),BCJR.a );
-         det.decode=BCJR.decode_bhat>0;
-         A=det.decode(1:end-6);
-         AA=step(ConEnc,A);
-         AAA=randintrlv(round(AA),1);
-         AAAA=[0;0;0;0;AAA;0;0;0;0];
-         xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
+                    BCJR.LLL4 = BCJR.LLL4+log_MAP;
+                    %%%%%%%%%%%%%%%%%%%%
+                    
+                    BCJR.L(2*(xx-1)-1,1) = BCJR.LLL1-BCJR.LLL2;%ooビットの左 LLL1>LLL2→1
+                    BCJR.L(2*(xx-1),1) = BCJR.LLL3-BCJR.LLL4;%ooビットの右
+                end
+                %% BCJRからの判定
+                if intrlv==1
+                BCJR.a=randdeintrlv(BCJR.L(3:end-4),1);
+                else
+                BCJR.a=BCJR.L(3:end-4);
+                end
+                 BCJR.a = max(min(BCJR.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
+                 BCJR.decode_bhat=APPDec(zeros(60,1),BCJR.a );
+                 det.decode=BCJR.decode_bhat>0;
+                 A=det.decode(1:end-6);
+                 AA=step(ConEnc,A);
+                 AAA=randintrlv(round(AA),1);
+                 AAAA=[0;0;0;0;AAA;0;0;0;0];
+                 xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
     case {'xb_est1','DASIC1'}
-   %% 一段用BCJR
-        BCJR1.alpha = zeros(4,length(TX.x))-1000000;
-        BCJR1.alpha(1,1) = log(1); %log取ると1→確率100%
-        BCJR1.alpha(1,2) = log(1); %log取ると1→確率100%
-        BCJR1.beta = zeros(4,length(TX.x))-1000000;
-        BCJR1.beta(1,end) = log(1);
-        BCJR1.beta(1,end-1) = log(1);
+                %% 一段用BCJR
 
-        BCJR1.Gamma= zeros(4,4,length(TX.x)-1)-1000000;
-        TX.Xi_vec_AB=Xi_vec_AB;
-        TX.phi=phi;
-
- for xx = 2:length(RX.c)-1
-     trel1 = BCJRTrellisDasic(TX,xx,CH,G,0,1); 
-
-    for idx_in = 1:trel1.num_in  
-     for sigi=1:trel1.num_state %状態i
-           BCJR1.Gamma(sigi,trel1.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.c(xx+1)-trel1.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
-      end
-    end
-   
-    for sigj = 1:trel1.num_state%状態j 
-       BCJR1.aaa = zeros(trel1.num_state,1);
-     for sigi=1:trel1.num_state %状態i
-          BCJR1.aaa(sigi)=BCJR1.alpha(sigi,xx)+BCJR1.Gamma(sigi,sigj,xx);
-
-      end
-      BCJR1.alpha(sigj,xx+1) = LOG_MAP(BCJR1.aaa,trel1.num_state);
-    end  
-
- end
- 
- 
- for xx = length(RX.c):-1:3
-     
-     for sigi = 1:trel1.num_state%状態i
-        BCJR1.bbb = zeros(trel1.num_state,1);
-        for sigj=1:trel1.num_state %状態j
-
-          BCJR1.bbb(sigj)=BCJR1.beta(sigj,xx)+BCJR1.Gamma(sigi,sigj,xx-1);
-
-        end
-   
-         BCJR1.beta(sigi,xx-1) = LOG_MAP(BCJR1.bbb,trel1.num_state );
-   
-     end  
-
-  for idx_in = 1:trel1.num_in
-
-    
-       for sigi = 1:trel1.num_state
-          
-           state = trel1.next_state(sigi,idx_in)+1;
-           BCJR1.L0(sigi) = BCJR1.Gamma(sigi,state,xx-1)+BCJR1.beta(state,xx)+BCJR1.alpha(sigi,xx-1);
-      
-       end
-    
-       BCJR1.LL(idx_in) = LOG_MAP(BCJR1.L0,trel1.num_state );
-  end
-   %%%%%%%%%%%%%%%%%%
-      BCJR1.LLL1 = BCJR1.LL(3);
-          log_MAP = log(1+exp(-1*(abs( BCJR1.LL(3)- BCJR1.LL(4)))));
-            if BCJR1.LL(4)>BCJR1.LL(3)
-                 BCJR1.LLL1 = BCJR1.LL(4);
+                BCJR1.alpha = zeros(4,length(TX.x)) - 1e10;
+                BCJR1.alpha(1,1) = log(1); %log取ると1→確率100%
+                BCJR1.alpha(1,2) = log(1); %log取ると1→確率100%
+                BCJR1.beta = zeros(4,length(TX.x)) - 1e10;
+                BCJR1.beta(1,end) = log(1);
+                BCJR1.beta(1,end-1) = log(1);
+                BCJR1.Gamma= zeros(4,4,length(TX.x)-1) - 1e10;
+                TX.Xi_vec_AB=Xi_vec_AB;
+                TX.phi=phi;
+            
+             for xx = 2:length(RX.c)-1
+                 trel1 = BCJRTrellisDasic(TX,xx,CH,G,0,1); 
+                for idx_in = 1:trel1.num_in  
+                 for sigi=1:trel1.num_state %状態i
+                       BCJR1.Gamma(sigi,trel1.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.c(xx+1)-trel1.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
+                  end
+                end
+               
+                for sigj = 1:trel1.num_state%状態j 
+                   BCJR1.aaa = zeros(trel1.num_state,1);
+                 for sigi=1:trel1.num_state %状態i
+                      BCJR1.aaa(sigi)=BCJR1.alpha(sigi,xx)+BCJR1.Gamma(sigi,sigj,xx);
+                  end
+                  BCJR1.alpha(sigj,xx+1) = LOG_MAP(BCJR1.aaa,trel1.num_state);
+                end  
+            
+                % 【追加】alphaの規格化（最大値を0にシフト）
+                BCJR1.max_alpha = max(BCJR1.alpha(:, xx+1));
+                BCJR1.alpha(:, xx+1) = BCJR1.alpha(:, xx+1) - BCJR1.max_alpha;
+             end
+             
+             
+             for xx = length(RX.c):-1:3
+                 
+                 for sigi = 1:trel1.num_state%状態i
+                    BCJR1.bbb = zeros(trel1.num_state,1);
+                    for sigj=1:trel1.num_state %状態j
+                      BCJR1.bbb(sigj)=BCJR1.beta(sigj,xx)+BCJR1.Gamma(sigi,sigj,xx-1);
+                    end
+               
+                     BCJR1.beta(sigi,xx-1) = LOG_MAP(BCJR1.bbb,trel1.num_state );
+               
+                 end  
+            
+                % 【追加】betaの規格化（最大値を0にシフト）
+                BCJR1.max_beta = max(BCJR1.beta(:, xx-1));
+                BCJR1.beta(:, xx-1) = BCJR1.beta(:, xx-1) - BCJR1.max_beta;
+            
+              for idx_in = 1:trel1.num_in
+                
+                   for sigi = 1:trel1.num_state
+                      
+                       state = trel1.next_state(sigi,idx_in)+1;
+                       BCJR1.L0(sigi) = BCJR1.Gamma(sigi,state,xx-1)+BCJR1.beta(state,xx)+BCJR1.alpha(sigi,xx-1);
+                  
+                   end
+                
+                   BCJR1.LL(idx_in) = LOG_MAP(BCJR1.L0,trel1.num_state );
+              end
+               %%%%%%%%%%%%%%%%%%
+                  BCJR1.LLL1 = BCJR1.LL(3);
+                      log_MAP = log(1+exp(-1*(abs( BCJR1.LL(3)- BCJR1.LL(4)))));
+                        if BCJR1.LL(4)>BCJR1.LL(3)
+                             BCJR1.LLL1 = BCJR1.LL(4);
+                        end
+                          BCJR1.LLL1 = BCJR1.LLL1+log_MAP;
+             
+                  BCJR1.LLL2 = BCJR1.LL(1);
+                      log_MAP = log(1+exp(-1*(abs(BCJR1.LL(1)-BCJR1.LL(2)))));
+                        if BCJR1.LL(2)>BCJR1.LL(1)
+                             BCJR1.LLL2 = BCJR1.LL(2);
+                        end
+                          BCJR1.LLL2 = BCJR1.LLL2+log_MAP;
+                  BCJR1.LLL3 = BCJR1.LL(2);
+                      log_MAP = log(1+exp(-1*(abs(BCJR1.LL(2)-BCJR1.LL(4)))));
+                        if BCJR1.LL(4)>BCJR1.LL(2)
+                             BCJR1.LLL3 = BCJR1.LL(4);
+                        end
+                          BCJR1.LLL3 = BCJR1.LLL3+log_MAP;
+             
+                  BCJR1.LLL4 = BCJR1.LL(1);
+                      log_MAP = log(1+exp(-1*(abs(BCJR1.LL(1)-BCJR1.LL(3)))));
+                        if BCJR1.LL(3)>BCJR1.LL(1)
+                             BCJR1.LLL4 = BCJR1.LL(3);
+                        end
+                          BCJR1.LLL4 = BCJR1.LLL4+log_MAP;
+                %%%%%%%%%%%%%%%%%%%%
+                 BCJR1.L(2*(xx-1)-1,1) = BCJR1.LLL1-BCJR1.LLL2;%ooビットの左 LLL1>LLL2→1
+                 BCJR1.L(2*(xx-1),1) = BCJR1.LLL3-BCJR1.LLL4;%ooビットの右
+                  b_hat = BCJR1.L>0 ;
+             end
+            %% BCJRからの判定
+            if intrlv==1
+            BCJR1.a=randdeintrlv(BCJR1.L(3:end-4),1);
+            else
+            BCJR1.a=BCJR1.L(3:end-4);
             end
-              BCJR1.LLL1 = BCJR1.LLL1+log_MAP;
- 
-      BCJR1.LLL2 = BCJR1.LL(1);
-          log_MAP = log(1+exp(-1*(abs(BCJR1.LL(1)-BCJR1.LL(2)))));
-            if BCJR1.LL(2)>BCJR1.LL(1)
-                 BCJR1.LLL2 = BCJR1.LL(2);
-            end
-              BCJR1.LLL2 = BCJR1.LLL2+log_MAP;
-
-      BCJR1.LLL3 = BCJR1.LL(2);
-          log_MAP = log(1+exp(-1*(abs(BCJR1.LL(2)-BCJR1.LL(4)))));
-            if BCJR1.LL(4)>BCJR1.LL(2)
-                 BCJR1.LLL3 = BCJR1.LL(4);
-            end
-              BCJR1.LLL3 = BCJR1.LLL3+log_MAP;
- 
-      BCJR1.LLL4 = BCJR1.LL(1);
-          log_MAP = log(1+exp(-1*(abs(BCJR1.LL(1)-BCJR1.LL(3)))));
-            if BCJR1.LL(3)>BCJR1.LL(1)
-                 BCJR1.LLL4 = BCJR1.LL(3);
-            end
-              BCJR1.LLL4 = BCJR1.LLL4+log_MAP;
-    %%%%%%%%%%%%%%%%%%%%
-     BCJR1.L(2*(xx-1)-1,1) = BCJR1.LLL1-BCJR1.LLL2;%ooビットの左 LLL1>LLL2→1
-     BCJR1.L(2*(xx-1),1) = BCJR1.LLL3-BCJR1.LLL4;%ooビットの右
-      b_hat = BCJR1.L>0 ;
- end
-%% BCJRからの判定
-if intrlv==1
-BCJR1.a=randdeintrlv(BCJR1.L(3:end-4),1);
-else
-BCJR1.a=BCJR1.L(3:end-4);
-end
- BCJR1.decode_bhat=APPDec(zeros(60,1),BCJR1.a );
-BCJR1.decode=BCJR1.decode_bhat>0;
-%%推定所望信号シンボルの作成
-%シンボルをそのまま
-% b_hat_t=[0;0;b_hat];
-% xbhat = pskmod(double(b_hat_t),G.Q,pi/G.Q,InputType="bit"); 
-%復号してから作成
-A=BCJR1.decode(1:end-6);
-AA=step(ConEnc,A);
-AAA=randintrlv(round(AA),1);
-AAAA=[0;0;0;0;AAA;0;0;0;0];
-xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
+            BCJR1.a = max(min(BCJR1.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
+            BCJR1.decode_bhat=APPDec(zeros(60,1),BCJR1.a );
+            BCJR1.decode=BCJR1.decode_bhat>0;
+            %%推定所望信号シンボルの作成
+            %シンボルをそのまま
+            % b_hat_t=[0;0;b_hat];
+            % xbhat = pskmod(double(b_hat_t),G.Q,pi/G.Q,InputType="bit"); 
+            %復号してから作成
+            A=BCJR1.decode(1:end-6);
+            AA=step(ConEnc,A);
+            AAA=randintrlv(round(AA),1);
+            AAAA=[0;0;0;0;AAA;0;0;0;0];
+            xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
 end
 switch SIM.mode
 case {'xb_est2','DASIC2'}
 %% 二段用BCJR
 
-        BCJR2.alpha = zeros(16,length(TX.x))-1000000;
+        BCJR2.alpha = zeros(16,length(TX.x))- 1e10;
         BCJR2.alpha(1,1) = log(1); %log取ると1→確率100%
         BCJR2.alpha(1,2) = log(1); %log取ると1→確率100%
-        BCJR2.beta = zeros(16,length(TX.x))-1000000;
+        BCJR2.beta = zeros(16,length(TX.x))- 1e10;
         BCJR2.beta(1,end) = log(1);
         BCJR2.beta(1,end-1) = log(1);
 
-        BCJR2.Gamma= zeros(16,16,length(TX.x)-1)-1000000;
+        BCJR2.Gamma= zeros(16,16,length(TX.x)-1)- 1e10;
         TX.Xi_vec_AB=Xi_vec_AB;
         TX.phi=phi;
 
@@ -461,7 +463,8 @@ if intrlv==1
  BCJR2.a=randdeintrlv( BCJR2.L(3:end-4),1);
 else
  BCJR2.a= BCJR2.L(3:end-4);
-end
+end  
+ BCJR2.a = max(min(BCJR2.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
  BCJR2.decode_bhat=APPDec(zeros(60,1), BCJR2.a);
  BCJR2.decode= BCJR2.decode_bhat>0;
 
@@ -512,6 +515,8 @@ switch SIM.mode
      EST.h = [EST.h_L; zeros(fft_ptA - L, 1)]; % 128ポイントのインパルス応答として再構成 (L以降はゼロ詰め＝完全な窓関数)
      EST.Xi_vec_AA = fft(EST.h, fft_ptA);% 128ポイントFFTで周波数領域へ
      EST.XiHat = EST.Xi_vec_AA(1:SIM.ndata);% 3. 最終的なチャネル推定値 (BCJRなどのデータ復号用)
+case{'Perfect'}
+     EST.XiHat = Xi_vec_AA(1:SIM.ndata);
     
     %比較用
     % True_Channel = Xi_vec_AB(1:SIM.ndata);
@@ -521,7 +526,7 @@ switch SIM.mode
 end
 %% SIのレプリカを減算し，復号
 switch SIM.mode
-    case {'est','xb_est','xb_est1','xb_est2'}
+    case {'Perfect','est','xb_est','xb_est1','xb_est2'}
 switch SIM.detmode
     case'MLD'
 tilde_xb=(RX.b-EST.XiHat.*TX.x(:,1))./Xi_vec_AB;%SIのシンボル減算し，xiABで割る
@@ -537,19 +542,18 @@ det.decode=APPDec(zeros(60,1), det.deint)>0;
     case 'BCJR'
 tilde_xb=RX.b(1:SIM.ndata)-EST.XiHat.*TX.x(:,1);
 %% BCJR
-  BCJR.alpha = zeros(4,length(TX.x))-1000000;
+        % 【修正】初期値を -1000000 から -1e10 に変更
+        BCJR.alpha = zeros(4,length(TX.x)) - 1e10;
         BCJR.alpha(1,1) = log(1); %log取ると1→確率100%
         BCJR.alpha(1,2) = log(1); %log取ると1→確率100%
-        BCJR.beta = zeros(4,length(TX.x))-1000000;
+        BCJR.beta = zeros(4,length(TX.x)) - 1e10;
         BCJR.beta(1,end) = log(1);
         BCJR.beta(1,end-1) = log(1);
-
-        BCJR.Gamma= zeros(4,4,length(TX.x)-1)-1000000;
+        BCJR.Gamma= zeros(4,4,length(TX.x)-1) - 1e10;
         TX.Xi_vec_AB=Xi_vec_AB;
 
  for xx = 2:SIM.ndata-1
      trel = BCJRTrellis(TX,xx,CH,G,0,1); 
-
     for idx_in = 1:trel.num_in  
      for sigi=1:trel.num_state %状態i
            BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(tilde_xb(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
@@ -560,11 +564,12 @@ tilde_xb=RX.b(1:SIM.ndata)-EST.XiHat.*TX.x(:,1);
        BCJR.aaa = zeros(trel.num_state,1);
      for sigi=1:trel.num_state %状態i
           BCJR.aaa(sigi)=BCJR.alpha(sigi,xx)+BCJR.Gamma(sigi,sigj,xx);
-
       end
       BCJR.alpha(sigj,xx+1) = LOG_MAP(BCJR.aaa,trel.num_state);
     end  
 
+    BCJR.max_alpha = max(BCJR.alpha(:, xx+1));
+    BCJR.alpha(:, xx+1) = BCJR.alpha(:, xx+1) - BCJR.max_alpha;
  end
  
  
@@ -573,17 +578,17 @@ tilde_xb=RX.b(1:SIM.ndata)-EST.XiHat.*TX.x(:,1);
      for sigi = 1:trel.num_state%状態i
         BCJR.bbb = zeros(trel.num_state,1);
         for sigj=1:trel.num_state %状態j
-
           BCJR.bbb(sigj)=BCJR.beta(sigj,xx)+BCJR.Gamma(sigi,sigj,xx-1);
-
         end
    
          BCJR.beta(sigi,xx-1) = LOG_MAP(BCJR.bbb,trel.num_state );
    
      end  
 
-  for idx_in = 1:trel.num_in
+    BCJR.max_beta = max(BCJR.beta(:, xx-1));
+    BCJR.beta(:, xx-1) = BCJR.beta(:, xx-1) - BCJR.max_beta;
 
+  for idx_in = 1:trel.num_in
     
        for sigi = 1:trel.num_state
           
@@ -608,7 +613,6 @@ tilde_xb=RX.b(1:SIM.ndata)-EST.XiHat.*TX.x(:,1);
                  BCJR.LLL2 = BCJR.LL(2);
             end
               BCJR.LLL2 = BCJR.LLL2+log_MAP;
-
       BCJR.LLL3 = BCJR.LL(2);
           log_MAP = log(1+exp(-1*(abs(BCJR.LL(2)-BCJR.LL(4)))));
             if BCJR.LL(4)>BCJR.LL(2)
@@ -625,9 +629,8 @@ tilde_xb=RX.b(1:SIM.ndata)-EST.XiHat.*TX.x(:,1);
     %%%%%%%%%%%%%%%%%%%%
      BCJR.L(2*(xx-1)-1,1) = BCJR.LLL1-BCJR.LLL2;%ooビットの左 LLL1>LLL2→1
      BCJR.L(2*(xx-1),1) = BCJR.LLL3-BCJR.LLL4;%ooビットの右
-     % b_hat(2*(xx-1)-1,1) = BCJR1.L(2*(xx-1)-1)>0 ;
-     % b_hat(2*(xx-1),1) = BCJR1.L(2*(xx-1))>0 ;
  end
+ % この後に続くデインターリーブや APPDec の処理はそのままお使いください
 %% BCJRからの判定
 % b_hat_t=b_hat(1:end-2);
 % deint_bhat = randdeintrlv(double(b_hat_t),1);
@@ -636,6 +639,7 @@ BCJR.a=randdeintrlv(BCJR.L(3:end-4),1);
 else
 BCJR.a=BCJR.L(3:end-4);
 end
+ BCJR.a = max(min(BCJR.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
  BCJR.decode_bhat=APPDec(zeros(60,1),BCJR.a );
     det.decode=BCJR.decode_bhat>0;
 end
@@ -643,7 +647,7 @@ end
     %% Error count
 
     switch SIM.mode
-        case {'est','xb_est','xb_est1','xb_est2'}
+        case {'Perfect','est','xb_est','xb_est1','xb_est2'}
     ERR.noe(idx_loop,:) = sum(det.decode(1:length(TX.b(:,2)),1) ~= TX.b(:,2));%map
         case 'DASIC1'
     ERR.noe(idx_loop,:) = sum(BCJR1.decode(1:length(TX.b(:,2)),1) ~= TX.b(:,2));%map
