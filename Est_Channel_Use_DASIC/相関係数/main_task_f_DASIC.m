@@ -1,33 +1,33 @@
-%QPSK BCJR MAP
-%1段DASICによりチャネルを推定し，残留SIの通信路の大きさを閾値と比較して二段適用するか判断する．
 function SIM = main_task_f_DASIC(En,idx,SIM,G)
-CH.N0 = 10^(-En/10); %1シンボル間隔の雑音エネルギー密度
+CH.N0 = 10^(-En/10); 
 ERR.noe   = zeros(SIM.nsamp,1);    ERR.noe_p = zeros(SIM.nsamp,1);    
 ERR.nod   = zeros(SIM.nsamp,1);    ERR.nod_p = zeros(SIM.nsamp,1);
-ERR.corr  = zeros(SIM.nsamp,1); % 【追加】相関係数の保存用配列
+
+% 【追加】検証用の配列を初期化
+fft_ptA = SIM.over*SIM.ndata; 
+ERR.Err_time_pow = zeros(fft_ptA, 1);
+ERR.P_True_AA    = zeros(SIM.nsamp, 1);
+ERR.P_Err_Interf = zeros(SIM.nsamp, 1);
 
 num_of_paths_AA = SIM.AA; 
 num_of_paths_AB = SIM.AB; 
 CH.L=SIM.AB;
-fft_ptA = SIM.over*SIM.ndata; 
 fft_ptB = SIM.over*SIM.ndata; 
 intrlv=SIM.int;
 constellation = [0.7071 + 0.7071i, -0.7071 + 0.7071i, 0.7071 - 0.7071i, -0.7071 - 0.7071i];
 alp2bit = de2bi(0:G.Q-1,'left-msb');
 
 %% トレリス作成 拘束長=7
-trellis = poly2trellis(7,[171 133]); %11ahで用いられるもの
+trellis = poly2trellis(7,[171 133]); 
 ConEnc = comm.ConvolutionalEncoder(trellis,'TerminationMethod','Terminated');
 APPDec = comm.APPDecoder(trellis,'Algorithm','True APP','TerminationMethod','Terminated');
 
 for idx_loop = 1:SIM.nsamp
-    TX.b = randn(SIM.ndata-log2(trellis.numStates)-4,2)>0;%(A,B)情報ビット 【終端ビット分減らす】
+    TX.b = randn(SIM.ndata-log2(trellis.numStates)-4,2)>0;
     
-    %畳み込み符号化
-    TX.codedata(:,1) = step(ConEnc,TX.b(:,1)); % A 符号化
-    TX.codedata(:,2) = step(ConEnc,TX.b(:,2)); % B 符号化
+    TX.codedata(:,1) = step(ConEnc,TX.b(:,1)); 
+    TX.codedata(:,2) = step(ConEnc,TX.b(:,2)); 
     
-    %インタリーブ
     if intrlv==1
         TX.codedata_in = round(TX.codedata);
         TX.codedata_in(:,1) = randintrlv(TX.codedata_in(:,1),1);
@@ -36,7 +36,7 @@ for idx_loop = 1:SIM.nsamp
         TX.codedata_in = TX.codedata;
     end
     
-    TX.codedata_int(:,1)=[0;0;0;0;TX.codedata_in(:,1);0;0;0;0];%BCJRの終端ビット(前後0を4bit)追加
+    TX.codedata_int(:,1)=[0;0;0;0;TX.codedata_in(:,1);0;0;0;0];
     TX.codedata_int(:,2)=[0;0;0;0;TX.codedata_in(:,2);0;0;0;0];
     
     %% 変調 (QPSK)
@@ -50,18 +50,16 @@ for idx_loop = 1:SIM.nsamp
     delay_profile_AA = (randn(num_of_paths_AA, 1) + 1i * randn(num_of_paths_AA, 1))./sqrt(2 * num_of_paths_AA);
     delay_profile_AB = (randn(num_of_paths_AB, 1) + 1i * randn(num_of_paths_AB, 1))./sqrt(2 * num_of_paths_AB);
     
-    % 規格化
     delay_profile_AA_s = delay_profile_AA./abs(delay_profile_AA);
     delay_profile_AB_s = delay_profile_AB./abs(delay_profile_AB)./sqrt(length(delay_profile_AB)); 
     
-    % 電力比を導入
     if SIM.AA==1
         delay_profile_AA_rho=delay_profile_AA_s;
     else
         delay_profile_AA_rho=zeros(size(delay_profile_AA_s));
         rho_sum=0;
         for rr = 2:SIM.AA
-            rho = 10^( (SIM.rho-5*(rr-2)) /10); %3波目以降-5dB
+            rho = 10^( (SIM.rho-5*(rr-2)) /10); 
             rho_sum = rho_sum+rho;
         end
         delay_profile_AA_rho(1) = delay_profile_AA_s(1)*sqrt(1/( 1 + rho_sum ) );
@@ -70,12 +68,10 @@ for idx_loop = 1:SIM.nsamp
         end
     end
         
-    % SIR考慮
     P_b = sum(abs(delay_profile_AB_s).^2);
     delay_profile_AA_sir = delay_profile_AA_rho*sqrt(P_b*10^(-SIM.SIR/10));
         
     %% 巡回通信路行列
-    % AB間
     H_circ_AB = [];
     tmp_profile_AB = zeros(fft_ptB,1); 
     tmp_profile_AB (1:SIM.delayB:SIM.delayB*num_of_paths_AB)= delay_profile_AB_s;
@@ -84,7 +80,6 @@ for idx_loop = 1:SIM.nsamp
         H_circ_AB = [H_circ_AB tmp_AB];
     end
     
-    % AA間
     H_circ_AA = [];
     tmp_profile_AA = zeros(fft_ptA,1); 
     tmp_profile_AA (1:SIM.delayA:SIM.delayA*num_of_paths_AA)= delay_profile_AA_sir;
@@ -93,25 +88,20 @@ for idx_loop = 1:SIM.nsamp
         H_circ_AA = [H_circ_AA tmp_AA];
     end
     
-    % 巡回通信路行列をスパース行列へ
     H_circ_AB = sparse(H_circ_AB);
     H_circ_AA = sparse(H_circ_AA);
     
-    % 周波数領域通信路行列の作成
     Xi_vec_AB = fft(tmp_profile_AB, fft_ptB);
     Xi_mat_AB = diag(sparse(Xi_vec_AB));
     Xi_vec_AA = fft(tmp_profile_AA, fft_ptA);
     Xi_mat_AA = diag(sparse(Xi_vec_AA));
     
     %% Channel 
-    % 送信電力計算
     ERR.tx_pow(idx_loop) = mean([sum(abs(TX.sA).^2) sum(abs(TX.sB).^2)]);
     
-    % 干渉チャネルと希望チャネルの適用
     RX.s_AA = H_circ_AA*TX.sA;
     RX.s_AB = H_circ_AB*TX.sB;    
     
-    % 雑音の生成
     CH.f = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
     CH.n =  ifft(CH.f, fft_ptB).*sqrt(fft_ptB);
  
@@ -120,26 +110,25 @@ for idx_loop = 1:SIM.nsamp
     RX.bN = fft(CH.n, fft_ptB)./sqrt(fft_ptB);
     RX.b = RX.bA + RX.bB + RX.bN;
     
-    % 受信電力計算
     ERR.rx_pow(idx_loop) = sum(abs(RX.b).^2);
-
+    
     switch(SIM.mode)
         case {'xb_est1','xb_est2','DASIC1','DASIC2'}
             %% DASIC (周波数領域)
-            phi = TX.x(2:end,1) ./ TX.x(1:end-1,1);  % 位相シフトを計算
+            phi = TX.x(2:end,1) ./ TX.x(1:end-1,1); 
             RX.c=zeros(SIM.ndata,1);
             RX.c(1)=RX.b(1);
-            RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); %自己干渉除去
+            RX.c(2:SIM.ndata) = RX.b(2:SIM.ndata) -  phi.*RX.b(1:SIM.ndata-1); 
             
             RX.c2=zeros(SIM.ndata,1);
             RX.c2(1)=RX.b(1);
             RX.c2(2)=RX.b(2);
-            RX.c2(3:SIM.ndata) = RX.c(3:SIM.ndata) -  phi(2:end).*RX.c(2:SIM.ndata-1); %自己干渉除去 
+            RX.c2(3:SIM.ndata) = RX.c(3:SIM.ndata) -  phi(2:end).*RX.c(2:SIM.ndata-1);  
     end
-
+    
+    % --- BCJRの処理部分は変更なし ---
     switch(SIM.mode)
         case {'xb_est'}
-            %% BCJR(DASICなしで所望信号推定)
             BCJR.alpha = zeros(4,length(TX.x)) - 1e10;
             BCJR.alpha(1,1) = log(1); 
             BCJR.alpha(1,2) = log(1); 
@@ -231,9 +220,8 @@ for idx_loop = 1:SIM.nsamp
             AAA=randintrlv(round(AA),1);
             AAAA=[0;0;0;0;AAA;0;0;0;0];
             xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
-
+            
         case {'xb_est1','DASIC1'}
-            %% 一段用BCJR
             BCJR1.alpha = zeros(4,length(TX.x)) - 1e10;
             BCJR1.alpha(1,1) = log(1); 
             BCJR1.alpha(1,2) = log(1); 
@@ -329,7 +317,6 @@ for idx_loop = 1:SIM.nsamp
             xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
             
         case {'xb_est2','DASIC2'}
-            %% 二段用BCJR
             BCJR2.alpha = zeros(16,length(TX.x))- 1e10;
             BCJR2.alpha(1,1) = log(1); 
             BCJR2.alpha(1,2) = log(1); 
@@ -424,36 +411,34 @@ for idx_loop = 1:SIM.nsamp
             AAAA=[0;0;0;0;AAA;0;0;0;0];
             xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
     end
-
-    %% チャネル推定と相関係数の記録
+    
+    %% 【追加】チャネル推定と検証データの取得
     switch SIM.mode
         case 'est'
             EST.Xi = RX.b(1:SIM.ndata)./TX.x(:,1);
-            ERR.corr(idx_loop) = 0; 
-            ERR.mimic(idx_loop) = 0; % 【追加】estは擬態しないので0
+            True_HA = Xi_vec_AA(1:SIM.ndata);
+            Raw_Error_Freq = EST.Xi - True_HA; 
+            
+            % 検証1：時間領域の誤差インパルス応答（128ポイントにゼロ詰めしてIFFT）
+            Err_Freq_128 = [Raw_Error_Freq; zeros(fft_ptA - SIM.ndata, 1)];
+            ERR.Err_time_pow = ERR.Err_time_pow + abs(ifft(Err_Freq_128, fft_ptA)).^2;
+            
+            % 検証2：真の信号電力 vs エラー干渉電力
+            ERR.P_True_AA(idx_loop)    = mean(abs(RX.bA(1:SIM.ndata)).^2);
+            ERR.P_Err_Interf(idx_loop) = mean(abs(RX.bB(1:SIM.ndata)).^2); 
+            
         case {'xb_est','xb_est1','xb_est2'}
-            % 1. レプリカと自己干渉の相関 μ (今まで通り、全体平均はゼロになる)
-            num_corr = abs(sum(xbhat .* conj(TX.x(:,1)))); 
-            den_corr = sqrt(sum(abs(xbhat).^2) * sum(abs(TX.x(:,1)).^2)); 
-            if den_corr == 0
-                ERR.corr(idx_loop) = 0;
-            else
-                ERR.corr(idx_loop) = num_corr / den_corr; 
-            end
-            
-            % 2. チャネル推定器に入力される「生のエラー」を計算
             EST.Xi = (RX.b(1:SIM.ndata)-Xi_vec_AB(1:SIM.ndata).*xbhat)./TX.x(:,1);
-            True_HA = Xi_vec_AA(1:SIM.ndata); % 真の自己干渉チャネル
-            Raw_Error = EST.Xi - True_HA;     % 窓関数を通す前の生のエラー
+            True_HA = Xi_vec_AA(1:SIM.ndata); 
+            Raw_Error_Freq = EST.Xi - True_HA; 
             
-            % 【追加】3. 生のエラーが「-True_HA」にどれだけ擬態しているか（擬態率）を計算
-            num_mimic = abs(sum(Raw_Error .* conj(-True_HA)));
-            den_mimic = sqrt(sum(abs(Raw_Error).^2) * sum(abs(-True_HA).^2));
-            if den_mimic == 0
-                ERR.mimic(idx_loop) = 0;
-            else
-                ERR.mimic(idx_loop) = num_mimic / den_mimic; % 0��1の値 (1に近いほど完全に擬態)
-            end
+            % 検証1：時間領域の誤差インパルス応答
+            Err_Freq_128 = [Raw_Error_Freq; zeros(fft_ptA - SIM.ndata, 1)];
+            ERR.Err_time_pow = ERR.Err_time_pow + abs(ifft(Err_Freq_128, fft_ptA)).^2;
+            
+            % 検証2：真の信号電力 vs エラー干渉電力
+            ERR.P_True_AA(idx_loop)    = mean(abs(RX.bA(1:SIM.ndata)).^2);
+            ERR.P_Err_Interf(idx_loop) = mean(abs(RX.bB(1:SIM.ndata) - Xi_vec_AB(1:SIM.ndata).*xbhat).^2);
     end
 
     switch SIM.mode
@@ -469,8 +454,8 @@ for idx_loop = 1:SIM.nsamp
             EST.Xi_vec_AA = fft(EST.h, fft_ptA);
             EST.XiHat = EST.Xi_vec_AA(1:SIM.ndata);
     end
-
-    %% SIのレプリカを減算し，復号
+    
+    %% SIのレプリカを減算し，復号 (省略せず記述)
     switch SIM.mode
         case {'est','xb_est','xb_est1','xb_est2'}
             switch SIM.detmode
@@ -566,7 +551,7 @@ for idx_loop = 1:SIM.nsamp
                     det.decode=BCJR.decode_bhat>0;
             end
     end
-
+    
     %% Error count
     switch SIM.mode
         case {'est','xb_est','xb_est1','xb_est2'}
@@ -585,15 +570,14 @@ for idx_loop = 1:SIM.nsamp
     end
     fprintf('%d/%d  %d/%d\n',idx,length(SIM.SIR),idx_loop,SIM.nsamp)
 end
-
 SIM.En  = En;
 SIM.BER = sum(ERR.noe,1) / sum(ERR.nod);
 SIM.PER = sum(ERR.noe_p,1) / sum(ERR.nod_p);
 SIM.SIR = 10*log10(sum(ERR.tx_pow)/(sum(ERR.rx_pow)-sum(ERR.tx_pow)));
 SIM.noe = sum(ERR.noe,1);
 SIM.nod = sum(ERR.nod,1);
-SIM.noe_p = sum(ERR.noe_p,1);
-SIM.nod_p = sum(ERR.nod_p,1);
-% 【追加】実行されたループ分だけの平均相関と平均擬態率を取る
-SIM.corr = mean(ERR.corr(1:idx_loop));
-SIM.mimic = mean(ERR.mimic(1:idx_loop)); % これを追加
+
+% 【追加】出力変数へ代入
+SIM.Err_time_pow = ERR.Err_time_pow / idx_loop;
+SIM.P_True_AA    = mean(ERR.P_True_AA(1:idx_loop));
+SIM.P_Err_Interf = mean(ERR.P_Err_Interf(1:idx_loop));
