@@ -29,6 +29,7 @@ SIM.mode = 'xb_est1';    %チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2
 SIM.detmode='BCJR';     %BCJR,MLD(使わない)
 SIM.PilotMode='simul'; %パイロットシンボルの送信タイミング (alterは交互(コード上ではSIなしになる) simulはSIと所望信号同時、基本的にはsimul)
 SIM.modeAB = 'SIC'; %ABチャネル推定用のモード選択 (WoSIC,SIC)
+SIM.null ='true';
  
 BER = zeros(size(SIM.SNR)); 
 
