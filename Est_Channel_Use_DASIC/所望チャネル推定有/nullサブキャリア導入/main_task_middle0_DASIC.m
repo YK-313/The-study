@@ -176,9 +176,15 @@ Xi_mat_AA = diag(sparse(Xi_vec_AA));
     RX.pAB=H_circ_AB*TX.pB;
     % 雑音の生成
     CH.f = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
-    CH.n =  ifft(CH.f, fft_ptB).*sqrt(fft_ptB);
+    CH_f_128 = zeros(fft_ptB, 1);
+    CH_f_128(phys_idx_B) = CH.f; %物理インデックスにノイズを配置
+    CH.n = ifft(CH_f_128, fft_ptB) .* sqrt(fft_ptB);
+    
+    % パイロット用のノイズ
     CH.pf = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
-    CH.pn =  ifft(CH.pf, fft_ptB).*sqrt(fft_ptB);
+    CH_pf_128 = zeros(fft_ptB, 1);
+    CH_pf_128(phys_idx_B) = CH.pf; %物理インデックスにノイズを配置
+    CH.pn = ifft(CH_pf_128, fft_ptB) .* sqrt(fft_ptB);
 %{
 % SNRの計算 (dBスケール)
 SNR_linear = sum(abs(RX.s_AB).^2) / sum(abs(CH.n).^2);
