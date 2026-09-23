@@ -1,7 +1,7 @@
 mode = 'SNR'; %横軸の設定(SNR,Eb/N0)
 
 
-fig1 = openfig( "1EstSir0.fig", 'invisible'); % .figファイルを開く
+fig1 = openfig( "2EstSir0.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 lines = findobj(ax, 'Type', 'line'); % ラインオブジェクトを取得
 for i = 1:length(lines)
@@ -10,7 +10,7 @@ for i = 1:length(lines)
 end
 close(fig1);
 
-fig2 = openfig( "1EstSir-20.fig", 'invisible'); % .figファイルを開く
+fig2 = openfig( "2EstSir-20.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 lines = findobj(ax, 'Type', 'line'); % ラインオブジェクトを取得
 for i = 1:length(lines)
@@ -19,7 +19,7 @@ for i = 1:length(lines)
 end
 close(fig2);
 
-fig3 = openfig( "1EstSir-40.fig", 'invisible'); % .figファイルを開く
+fig3 = openfig( "2EstSir-40.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 lines = findobj(ax, 'Type', 'line'); % ラインオブジェクトを取得
 for i = 1:length(lines)
@@ -28,7 +28,7 @@ for i = 1:length(lines)
 end
 close(fig3);
 
-fig4 = openfig( "1EstSir-60.fig", 'invisible'); % .figファイルを開く
+fig4 = openfig( "2EstSir-60.fig", 'invisible'); % .figファイルを開く
 ax = gca; 
 lines = findobj(ax, 'Type', 'line'); 
 for i = 1:length(lines)
@@ -37,7 +37,7 @@ for i = 1:length(lines)
 end
 close(fig4);
 
-fig5 = openfig( "1EstSir-80.fig", 'invisible'); % .figファイルを開く
+fig5 = openfig( "2EstSir-80.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 lines = findobj(ax, 'Type', 'line'); % ラインオブジェクトを取得
 for i = 1:length(lines)
@@ -46,7 +46,7 @@ for i = 1:length(lines)
 end
 close(fig5);
 
-fig6 = openfig( "1EstSir-100.fig", 'invisible'); % .figファイルを開く
+fig6 = openfig( "2EstSir-100.fig", 'invisible'); % .figファイルを開く
 ax = gca; % 現在の軸を取得
 lines = findobj(ax, 'Type', 'line'); % ラインオブジェクトを取得
 for i = 1:length(lines)

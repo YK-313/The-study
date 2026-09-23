@@ -1,6 +1,6 @@
 %QPSK　BCJR MAP
 %1段DASICによりチャネルを推定し，残留SIの通信路の大きさを閾値と比較して二段適用するか判断する．
-function SIM = main_task_f_DASIC(En,idx,SIM,G)
+function SIM = main_task_back0_DASIC(En,idx,SIM,G)
 CH.N0 = 10^(-En/10); %1シンボル間隔の雑音エネルギー密度
 ERR.noe   = zeros(SIM.nsamp,1);    ERR.noe_p = zeros(SIM.nsamp,1);    
 ERR.nod   = zeros(SIM.nsamp,1);    ERR.nod_p = zeros(SIM.nsamp,1);
@@ -343,18 +343,25 @@ switch(SIM.mode)
                 end
                 %% BCJRからの判定
                 if intrlv==1
-                BCJR.a=randdeintrlv(BCJR.L(3:end-4),1);
+                    BCJR.a = randdeintrlv(BCJR.L(3:end-4), 1);
                 else
-                BCJR.a=BCJR.L(3:end-4);
+                    BCJR.a = BCJR.L(3:end-4);
                 end
-                 BCJR.a = max(min(BCJR.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
-                 BCJR.decode_bhat=APPDec(zeros(52,1),BCJR.a );
-                 det.decode=BCJR.decode_bhat>0;
-                 A=det.decode(1:end-6);
-                 AA=step(ConEnc,A);
-                 AAA=randintrlv(round(AA),1);
-                 AAAA=[0;0;0;0;AAA;0;0;0;0];
-                 xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
+                
+                BCJR.a = max(min(BCJR.a, SIM.LLRclip), -SIM.LLRclip);
+                
+                % 【修正】ここだけ動的サイズに変更
+                app_dummy = zeros(length(BCJR.a)/2, 1);
+                BCJR.decode_bhat = APPDec(app_dummy, BCJR.a);
+                det.decode = BCJR.decode_bhat > 0;
+                
+                A = det.decode(1:end - conv_tail_bits);
+                AA = step(ConEnc, A);
+                AAA = randintrlv(round(AA), 1);
+                
+                % 前後パディング
+                AAAA = [pad_zeros; AAA; pad_zeros];
+                xbhat = pskmod(double(AAAA), G.Q, pi/G.Q, InputType="bit");
     case {'xb_est1','DASIC1'}
                 %% 一段用BCJR
 
@@ -449,25 +456,25 @@ switch(SIM.mode)
                  BCJR1.L(2*(xx-1),1) = BCJR1.LLL3-BCJR1.LLL4;%ooビットの右
                   b_hat = BCJR1.L>0 ;
              end
-            %% BCJRからの判定
+            %% BCJR1からの判定
             if intrlv==1
-            BCJR1.a=randdeintrlv(BCJR1.L(3:end-4),1);
+                BCJR1.a = randdeintrlv(BCJR1.L(3:end-4), 1);
             else
-            BCJR1.a=BCJR1.L(3:end-4);
+                BCJR1.a = BCJR1.L(3:end-4);
             end
-            BCJR1.a = max(min(BCJR1.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
-            BCJR1.decode_bhat=APPDec(zeros(52,1),BCJR1.a );
-            BCJR1.decode=BCJR1.decode_bhat>0;
-            %%推定所望信号シンボルの作成
-            %シンボルをそのまま
-            % b_hat_t=[0;0;b_hat];
-            % xbhat = pskmod(double(b_hat_t),G.Q,pi/G.Q,InputType="bit"); 
-            %復号してから作成
-            A=BCJR1.decode(1:end-6);
-            AA=step(ConEnc,A);
-            AAA=randintrlv(round(AA),1);
-            AAAA=[0;0;0;0;AAA;0;0;0;0];
-            xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
+            
+            BCJR1.a = max(min(BCJR1.a, SIM.LLRclip), -SIM.LLRclip);
+            
+            app_dummy = zeros(length(BCJR1.a)/2, 1);
+            BCJR1.decode_bhat = APPDec(app_dummy, BCJR1.a);
+            BCJR1.decode = BCJR1.decode_bhat > 0;
+            
+            A = BCJR1.decode(1:end - conv_tail_bits);
+            AA = step(ConEnc, A);
+            AAA = randintrlv(round(AA), 1);
+            
+            AAAA = [pad_zeros; AAA; pad_zeros];
+            xbhat = pskmod(double(AAAA), G.Q, pi/G.Q, InputType="bit");
 end
 switch SIM.mode
 case {'xb_est2','DASIC2'}
@@ -556,22 +563,25 @@ for xx = length(RX.c2):-1:3
       BCJR2.L(2*(xx-1),1) =  BCJR2.LLL3- BCJR2.LLL4;%ooビットの右
            b_hat = BCJR2.L>0 ;
  end
-%% BCJRからの判定
-if intrlv==1
- BCJR2.a=randdeintrlv( BCJR2.L(3:end-4),1);
-else
- BCJR2.a= BCJR2.L(3:end-4);
-end  
- BCJR2.a = max(min(BCJR2.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
- BCJR2.decode_bhat=APPDec(zeros(52,1), BCJR2.a);
- BCJR2.decode= BCJR2.decode_bhat>0;
+%% BCJR2からの判定
+            if intrlv==1
+                BCJR2.a = randdeintrlv(BCJR2.L(3:end-4), 1);
+            else
+                BCJR2.a = BCJR2.L(3:end-4);
+            end  
+            
+            BCJR2.a = max(min(BCJR2.a, SIM.LLRclip), -SIM.LLRclip);
+            
+            app_dummy = zeros(length(BCJR2.a)/2, 1);
+            BCJR2.decode_bhat = APPDec(app_dummy, BCJR2.a);
+            BCJR2.decode = BCJR2.decode_bhat > 0;
 
-%シンボルを復号してから作成
-A=BCJR2.decode(1:end-6);
-AA=step(ConEnc,A);
-AAA=randintrlv(round(AA),1);
-AAAA=[0;0;0;0;AAA;0;0;0;0];
-xbhat = pskmod(double(AAAA),G.Q,pi/G.Q,InputType="bit");
+            A = BCJR2.decode(1:end - conv_tail_bits);
+            AA = step(ConEnc, A);
+            AAA = randintrlv(round(AA), 1);
+            
+            AAAA = [pad_zeros; AAA; pad_zeros];
+            xbhat = pskmod(double(AAAA), G.Q, pi/G.Q, InputType="bit");
 end
 %%チャネル推定
 switch SIM.mode
@@ -697,18 +707,21 @@ switch SIM.mode
      BCJR.L(2*(xx-1)-1,1) = BCJR.LLL1-BCJR.LLL2;%ooビットの左 LLL1>LLL2→1
      BCJR.L(2*(xx-1),1) = BCJR.LLL3-BCJR.LLL4;%ooビットの右
  end
- % この後に続くデインターリーブや APPDec の処理はそのままお使いください
 %% BCJRからの判定
 % b_hat_t=b_hat(1:end-2);
 % deint_bhat = randdeintrlv(double(b_hat_t),1);
-if intrlv==1
-BCJR.a=randdeintrlv(BCJR.L(3:end-4),1);
-else
-BCJR.a=BCJR.L(3:end-4);
-end
- BCJR.a = max(min(BCJR.a, SIM.LLRclip), -SIM.LLRclip); %APPDecでオーバーフローしないためのクリッピング
- BCJR.decode_bhat=APPDec(zeros(52,1),BCJR.a );
-    det.decode=BCJR.decode_bhat>0;
+                if intrlv==1
+                    BCJR.a = randdeintrlv(BCJR.L(3:end-4), 1);
+                else
+                    BCJR.a = BCJR.L(3:end-4);
+                end
+                
+                BCJR.a = max(min(BCJR.a, SIM.LLRclip), -SIM.LLRclip);
+                
+                % 【修正】ここだけ動的サイズに変更
+                app_dummy = zeros(length(BCJR.a)/2, 1);
+                BCJR.decode_bhat = APPDec(app_dummy, BCJR.a);
+                det.decode = BCJR.decode_bhat > 0;
 end
     %% Error count
 
