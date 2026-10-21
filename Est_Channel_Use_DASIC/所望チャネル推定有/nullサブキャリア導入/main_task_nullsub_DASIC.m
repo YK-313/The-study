@@ -1,5 +1,4 @@
 %QPSK　BCJR MAP
-%1段DASICによりチャネルを推定し，残留SIの通信路の大きさを閾値と比較して二段適用するか判断する．
 function SIM = main_task_nullsub_DASIC(En,idx,SIM,G)
 CH.N0 = 10^(-En/10); %1シンボル間隔の雑音エネルギー密度
 ERR.noe   = zeros(SIM.nsamp,1);    ERR.noe_p = zeros(SIM.nsamp,1);    
@@ -650,6 +649,49 @@ EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
             AAAA = [AAA(1:idx_data1); pad_zeros; pad_zeros; AAA(idx_data1+1:end)];
             xbhat = pskmod(double(AAAA), G.Q, pi/G.Q, InputType="bit");
     end
+    % % ----------------------------------------------------
+    % % 【検証用コード】真のXi_ABゲインとレプリカエラーの関係を確認
+    % if ismember(SIM.mode, {'xb_est1', 'xb_est2'}) % 1段・2段の両方で動作
+    %     % 【修正】真のチャネルゲイン(Perfect CSI)を使用する
+    %     % 128ptの真のチャネル Xi_vec_AB から、物理インデックス -> 有効サブキャリア を抽出
+    %     true_Xi_AB_valid = Xi_vec_AB(phys_idx_B(data_idx));
+    %     abs_Xi_AB = abs(true_Xi_AB_valid);
+    % 
+    %     % 正解データ（所望信号 x_B）
+    %     TX_xB_valid = TX.x(data_idx, 2); 
+    % 
+    %     % シンボル判定エラーの位置 (1:エラー, 0:正解)
+    %     sym_error = abs(TX_xB_valid(:) - xbhat(:)) > 0.1; 
+    % 
+    %     figure(200); clf;
+    %     % 左軸：真のチャネルゲインをグレーの棒グラフで表示
+    %     yyaxis left
+    %     bar(1:num_data_subc, abs_Xi_AB, 'FaceColor', [0.8 0.8 0.8], 'EdgeColor', 'none');
+    %     ylabel('True Channel Gain |\xi_{AB}|');
+    %     ylim([0 max(abs_Xi_AB)*1.2]);
+    % 
+    %     % 右軸：エラー箇所を赤のステムで表示
+    %     yyaxis right
+    %     stem(1:num_data_subc, sym_error, 'r', 'LineWidth', 1.5, 'Marker', 'x');
+    %     ylabel('Error (1) / Correct (0)');
+    %     ylim([-0.2 1.2]);
+    % 
+    %     title(sprintf('Relationship between True |\\xi_{AB}| and Errors (Mode: %s, SNR=%d, SIR=%d)', SIM.mode, En, SIM.SIR));
+    %     xlabel('Valid Subcarrier Index (1 to 56)');
+    %     grid on;
+    % 
+    %     % 数値的にも確認してコマンドウィンドウに出力
+    %     mean_gain_correct = mean(abs_Xi_AB(~sym_error));
+    %     mean_gain_error = mean(abs_Xi_AB(sym_error));
+    %     fprintf('--- Error Analysis (%s) ---\n', SIM.mode);
+    %     fprintf('正解したサブキャリアの平均ゲイン |Xi_AB| : %f\n', mean_gain_correct);
+    %     fprintf('間違えたサブキャリアの平均ゲイン |Xi_AB| : %f\n', mean_gain_error);
+    %     fprintf('エラー率 (BER) : %f (%d/%d)\n', sum(sym_error)/num_data_subc, sum(sym_error), num_data_subc);
+    %     fprintf('----------------------\n');
+    % 
+    %     keyboard; % ここで一時停止。続きを回すにはコマンドウィンドウで 'dbcont' 
+    % end
+    % % ----------------------------------------------------
     %%チャネル推定
     switch SIM.mode
     case 'est'
@@ -663,21 +705,24 @@ EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
     switch SIM.mode
     case {'est','xb_est','xb_est1','xb_est2'}
         %% 帯域制限(Virtual Subcarrier)を考慮した時間領域チャネル復元
-        L = SIM.delayA * num_of_paths_AA; % 有効な最大遅延サンプル数 (これ以降の時間は0)
-        F_matrix = fft(eye(fft_ptA)); % 128ポイントのFFT行列を生成
-        % 行: 有効サブキャリア(data_idx), 列: パス数(1~L) の部分行列を抽出
-        F_partial_valid = F_matrix(data_idx, 1:L);
-        % LS推定: 擬似逆行列(pinv)を用いて、56個の周波数成分からL個の時間タップを逆算
+        L = SIM.delayA * num_of_paths_AA; 
+        F_matrix = fft(eye(fft_ptA)); 
+        
+        % 【修正1】128pt上の正しい物理インデックスを特定する
+        phys_valid_idx_A = phys_idx_A(data_idx);
+        
+        % 【修正2】物理インデックスを使ってF行列を抽出
+        F_partial_valid = F_matrix(phys_valid_idx_A, 1:L);
+        
         EST.h_L = pinv(F_partial_valid) * EST.Xi_valid;
-        % 128ポイントのインパルス応答として再構成 (L以降はゼロ詰め＝完全な窓関数)
         EST.h = [EST.h_L; zeros(fft_ptA - L, 1)];
-        % 128ポイントFFTで周波数領域へ
         EST.Xi_vec_AA = fft(EST.h, fft_ptA);
-        % 3. 最終的なチャネル推定値 (全64サブキャリア分として綺麗に補間・復元される)
-        EST.XiHat = EST.Xi_vec_AA(1:SIM.ndata);
+        
+        % 【修正3】128ptの両端から64個のベースバンドチャネルを抽出
+        EST.XiHat = EST.Xi_vec_AA(phys_idx_A);
     
     case {'Perfect'}
-        EST.XiHat = Xi_vec_AA(1:SIM.ndata);
+        EST.XiHat = Xi_vec_AA(phys_idx_A);
     end
     %% SIのレプリカを減算し，復号
     switch SIM.mode
@@ -788,6 +833,17 @@ EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
             BCJR.decode_bhat = APPDec(app_dummy, BCJR.a);
             det.decode = BCJR.decode_bhat > 0;
     end
+%     % --- 検証用：エラー分布の可視化 ---
+% error_locations = abs(TX.x_valid - xbhat(:,1)) > 0.1; % 送信シンボルと判定レプリカの差分
+% figure(100);
+% stem(error_locations, 'LineWidth', 1.5);
+% title(['Error Locations (Mode: ', SIM.mode, ')']);
+% xlabel('Valid Subcarrier Index (1 to 56)');
+% ylabel('Error (1) / Correct (0)');
+% ylim([-0.2 1.2]);
+% grid on;
+% keyboard; % コマンドウィンドウで 'dbcont' と打つと次のループへ進みます
+% % ---------------------------------
     %% Error count
     switch SIM.mode
     case {'Perfect','est','xb_est','xb_est1','xb_est2'}

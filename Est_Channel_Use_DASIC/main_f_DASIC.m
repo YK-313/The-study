@@ -10,7 +10,7 @@ SIM.SNR     = 0:2:14;         % 信号対雑音電力比
 SIM.w_loop  = 5;            
 SIM.nsamp   = 5*10^SIM.w_loop;  
 SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = -20;           % 希望信号対干渉電力比
+SIM.SIR     = -30;           % 希望信号対干渉電力比
 SIM.rho     = -3;
 SIM.Nrho    = -3;
 SIM.nsym    = 64;           % シンボル数         
@@ -19,12 +19,12 @@ SIM.over = 2;
 SIM.delayA=1;%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
 SIM.delayB=2;
 SIM.int=1; %インタリーバ 1:あり,2:なし
-SIM.AA=3;%AA間パス数
+SIM.AA=2;%AA間パス数
 SIM.AB=16;%AB間パス数
 SIM.LLRclip = 10000000000;
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.mode = 'est';    %チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2,est,xb_est,xb_est1,xb_est2) ※DASICはチャネル推定なしでDASICだけによるSIC,estは所望推定なし,xb_estはあり(DASICなし,1段,2段)
+SIM.mode = 'DASIC2';    %チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2,est,xb_est,xb_est1,xb_est2) ※DASICはチャネル推定なしでDASICだけによるSIC,estは所望推定なし,xb_estはあり(DASICなし,1段,2段)
 SIM.detmode='BCJR';     %BCJR,MLD(使わない)
 
 
