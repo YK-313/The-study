@@ -263,8 +263,8 @@ if strcmp(SIM.CSI, 'true')
                     %% SIのレプリカを作成し，減算後パイロットからXi_ABを推定
                     P.EST.Xi_valid = RX.p(data_idx) ./ TX.pSym(data_idx, 1);
                     
-                    P.L = SIM.delayA * num_of_paths_AA; 
-                    P.F_matrix = fft(eye(fft_ptA)); 
+                    P.L = SIM.AAWinWid; 
+                    P.F_matrix = fft(eye(fft_ptA));
                     phys_valid_idx_A = phys_idx_A(data_idx);
                     
                     P.F_partial_valid = P.F_matrix(phys_valid_idx_A, 1:P.L);
@@ -281,8 +281,8 @@ if strcmp(SIM.CSI, 'true')
     
     % 3. Xi_ABの時間領域補間と全帯域復元
     % (ここからは先ほどのコードのままでOKです)
-    Lp = SIM.delayB * num_of_paths_AB; 
-    F_matrix_p = fft(eye(fft_ptB)); 
+    Lp = SIM.ABWinWid; 
+    F_matrix_p = fft(eye(fft_ptB));
     
     phys_valid_idx_B = phys_idx_B(data_idx);
     
@@ -294,7 +294,7 @@ if strcmp(SIM.CSI, 'true')
     % 128ptのFFT結果からベースバンド(64個)を抽出
     EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
 else
-    EST.HatXivecAB =Xi_vec_AB;
+    EST.HatXivecAB =Xi_vec_AB(phys_idx_B);
 end
 
     %nullサブキャリアの除去・有効なサブキャリアのみを抽出
@@ -725,9 +725,8 @@ end
     switch SIM.mode
     case {'est','xb_est','xb_est1','xb_est2'}
         %% 帯域制限(Virtual Subcarrier)を考慮した時間領域チャネル復元
-        L = SIM.delayA * num_of_paths_AA; 
-        F_matrix = fft(eye(fft_ptA)); 
-        
+        L = SIM.AAWinWid; 
+        F_matrix = fft(eye(fft_ptA));
         % 【修正1】128pt上の正しい物理インデックスを特定する
         phys_valid_idx_A = phys_idx_A(data_idx);
         
