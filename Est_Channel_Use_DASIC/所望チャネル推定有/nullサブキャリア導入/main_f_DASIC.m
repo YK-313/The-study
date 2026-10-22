@@ -38,8 +38,6 @@ BER = zeros(size(SIM.SNR));
 %%%%%%%%%%%%%%% 
 %for idx = 1:length(SIM.SNR)
 parfor idx = 1:length(SIM.SNR)
-    %RES = main_task_back0_DASIC(SIM.SNR(idx),idx,SIM,G); 
-    %RES = main_task_middle0_DASIC(SIM.SNR(idx),idx,SIM,G);
     RES = main_task_nullsub_DASIC(SIM.SNR(idx),idx,SIM,G);
     BER(idx) = RES.BER;                       
 end
