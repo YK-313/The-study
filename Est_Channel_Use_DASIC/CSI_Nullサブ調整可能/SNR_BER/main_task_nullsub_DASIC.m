@@ -339,7 +339,7 @@ end
             
                 for idx_in = 1:trel.num_in
                     for sigi=1:trel.num_state %状態i
-                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.b_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
+                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.b_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/CH.N0;%尤度の計算
                     end
                 end
                 
@@ -762,7 +762,7 @@ end
                 trel = BCJRTrellis(TX,xx,CH,G,0,1);
             for idx_in = 1:trel.num_in
                 for sigi=1:trel.num_state %状態i
-                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(tilde_xb_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
+                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(tilde_xb_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/CH.N0;%尤度の計算
                 end
             end
             
