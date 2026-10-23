@@ -7,10 +7,10 @@ startTime = clock;
 %%%% Parameters %%%%
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
-SIM.SNR     =0:3:18;         % 信号対雑音電力比
+SIM.SNR     =0:2:18;         % 信号対雑音電力比
 SIM.w_loop  = 5;            
 SIM.nsamp   = 3*10^SIM.w_loop;  
-SIM.err_max = 150;  
+SIM.err_max = 500;  
 SIM.SIR     = -10;           % 希望信号対干渉電力比
 SIM.rho     = -3;
 SIM.Nrho    = -3;
@@ -25,7 +25,7 @@ SIM.AB=16;%AB間パス数
 SIM.LLRclip = 10000000000;
 G.Q = 4; %変調次数
 G.ml=log2(G.Q);
-SIM.AAWinWid = 32; %SIチャネル推定時の窓関数の窓幅(SIM.overに注意すること、over1で16なら16シンボル遅延まで、over2で16なら8シンボル遅延までの窓幅になる。)
+SIM.AAWinWid = 16; %SIチャネル推定時の窓関数の窓幅(SIM.overに注意すること、over1で16なら16シンボル遅延まで、over2で16なら8シンボル遅延までの窓幅になる。)
 SIM.ABWinWid = 32; %所望チャネル推定時の窓関数の窓幅
 SIM.mode = 'xb_est2';    %チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2,est,xb_est,xb_est1,xb_est2) ※DASICはチャネル推定なしでDASICだけによるSIC,estは所望推定なし,xb_estはあり(DASICなし,1段,2段)
 SIM.detmode='BCJR';     %BCJR,MLD(使わない)
