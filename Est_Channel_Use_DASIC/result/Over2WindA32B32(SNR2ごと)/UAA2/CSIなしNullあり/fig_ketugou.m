@@ -46,6 +46,16 @@ else
     warning('Perfect.fig が見つかりません。');
 end
 
+% ループ処理用に配列にまとめる
+all_flags = [plot_type1_flag, plot_type2_flag];
+all_methods = {methods_type1, methods_type2};
+all_names = {names_type1, names_type2};
+all_colors = {colors_type1, colors_type2};
+fig_titles = {'(a) Type 1 Performance', '(b)/(c) Type 2 and Baseline Performance'};
+
+% --- 【新規追加】保存するファイル名 ---
+out_filenames = {'Type1.eps', 'Type2.eps'};
+
 % ==========================================
 % 3. プロット実行ループ
 % ==========================================
@@ -114,15 +124,15 @@ for fig_idx = 1:2
     % --- グラフの装飾と凡例設定 ---
     grid on;
     axis([0 14 10^-5 1]);
-    set(gca, 'LineWidth', 2, 'FontSize', 35, 'FontName', 'Times New Roman', ...
+    set(gca, 'LineWidth', 2, 'FontSize', 30, 'FontName', 'Times New Roman', ...
         'YScale', 'log', 'XTick', 0:2:14, 'YTick', 10.^(-5:1:0));
         
     if strcmp(mode ,'SNR')
-        xlabel('SNR [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 35);
+        xlabel('SNR [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize',30);
     else
-        xlabel('$E_\mathrm{b}/N_0$ [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 35);
+        xlabel('$E_\mathrm{b}/N_0$ [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 30);
     end
-    ylabel('BER', 'FontName', 'Times New Roman', 'FontSize', 35);
+    ylabel('BER', 'FontName', 'Times New Roman', 'FontSize', 30);
     
     % 凡例（Legend）の作成
     h_legend_items = [];
@@ -151,10 +161,11 @@ for fig_idx = 1:2
         legend_strs{end+1} = 'Perfect SIC';
     end
     
-    lgd = legend(h_legend_items, legend_strs, 'FontSize', 30, 'FontName', 'Times New Roman', 'Interpreter', 'latex');
+    lgd = legend(h_legend_items, legend_strs, 'FontSize', 22, 'FontName', 'Times New Roman', 'Interpreter', 'latex');
     lgd.NumColumns = 1; 
     %lgd.Location = 'eastoutside'; % 凡例の数が多いので枠外配置
     lgd.Location = 'southwest'; % 枠内の左下に配置
     axis square; 
     hold off;
+    %exportgraphics(gcf, out_filenames{fig_idx}, 'ContentType', 'vector');
 end
