@@ -30,8 +30,9 @@ all_colors = {colors_type1, colors_type2};
 fig_titles = {'(a) Type 1 Performance', '(b)/(c) Type 2 and Baseline Performance'};
 
 % ==========================================
-% 2. Perfect.fig の読み込み (共通)
+% 2. Perfectデータの読み込み (共通)
 % ==========================================
+% (A) パイロット汚染あり (Perfect.fig)
 perfX = []; perfY = [];
 if exist('Perfect.fig', 'file')
     figP = openfig('Perfect.fig', 'invisible');
@@ -44,6 +45,21 @@ if exist('Perfect.fig', 'file')
     close(figP);
 else
     warning('Perfect.fig が見つかりません。');
+end
+
+% (B) パイロット時もSIC完璧 (Perfect(PilotPerfect).fig)
+perfPPX = []; perfPPY = [];
+if exist('Perfect(PilotPerfect).fig', 'file')
+    figPP = openfig('Perfect(PilotPerfect).fig', 'invisible');
+    axPP = gca(figPP);
+    linesPP = findobj(axPP, 'Type', 'line');
+    for i = 1:length(linesPP)
+        perfPPX = get(linesPP(i), 'XData');
+        perfPPY = get(linesPP(i), 'YData');
+    end
+    close(figPP);
+else
+    warning('Perfect(PilotPerfect).fig が見つかりません。');
 end
 
 % ==========================================
@@ -104,25 +120,32 @@ for fig_idx = 1:2
         end
     end
     
-    % Perfect CSI のプロット
+    % (A) Perfect CSI (パイロット汚染あり) のプロット -> 黒の一点鎖線 (k-.)
     if ~isempty(perfX)
         perfY_plot = perfY;
         perfY_plot(perfY_plot == 0) = NaN; 
-        h_perf = semilogy(perfX, perfY_plot, 'k--', 'LineWidth', 2, 'MarkerSize', 10, 'MarkerFaceColor', 'none');
+        h_perf = semilogy(perfX, perfY_plot, 'k-.', 'LineWidth', 2, 'Marker', 'none');
+    end
+    
+    % (B) Perfect CSI (パイロット時もSIC完璧) のプロット -> 黒の破線 (k--)
+    if ~isempty(perfPPX)
+        perfPPY_plot = perfPPY;
+        perfPPY_plot(perfPPY_plot == 0) = NaN; 
+        h_perfPP = semilogy(perfPPX, perfPPY_plot, 'k--', 'LineWidth', 2, 'Marker', 'none');
     end
     
     % --- グラフの装飾と凡例設定 ---
     grid on;
     axis([0 14 10^-5 1]);
-    set(gca, 'LineWidth', 2, 'FontSize', 35, 'FontName', 'Times New Roman', ...
+    set(gca, 'LineWidth', 2, 'FontSize', 30, 'FontName', 'Times New Roman', ...
         'YScale', 'log', 'XTick', 0:2:14, 'YTick', 10.^(-5:1:0));
         
     if strcmp(mode ,'SNR')
-        xlabel('SNR [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 35);
+        xlabel('SNR [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize',30);
     else
-        xlabel('$E_\mathrm{b}/N_0$ [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 35);
+        xlabel('$E_\mathrm{b}/N_0$ [dB]', 'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 30);
     end
-    ylabel('BER', 'FontName', 'Times New Roman', 'FontSize', 35);
+    ylabel('BER', 'FontName', 'Times New Roman', 'FontSize', 30);
     
     % 凡例（Legend）の作成
     h_legend_items = [];
@@ -145,15 +168,20 @@ for fig_idx = 1:2
         legend_strs{end+1} = sprintf('$\\eta=%d$ dB', sir_values(s));
     end
     
-    % Perfect CSI の凡例
+    % (A) Perfect CSI (パイロット汚染あり) の凡例
     if ~isempty(perfX)
         h_legend_items = [h_legend_items, h_perf];
-        legend_strs{end+1} = 'Perfect SIC';
+        legend_strs{end+1} = 'Perfect SIC (Contam.)';
     end
     
-    lgd = legend(h_legend_items, legend_strs, 'FontSize', 30, 'FontName', 'Times New Roman', 'Interpreter', 'latex');
+    % (B) Perfect CSI (パイロット時もSIC完璧) の凡例
+    if ~isempty(perfPPX)
+        h_legend_items = [h_legend_items, h_perfPP];
+        legend_strs{end+1} = 'Perfect SIC (Ideal)';
+    end
+    
+    lgd = legend(h_legend_items, legend_strs, 'FontSize', 22, 'FontName', 'Times New Roman', 'Interpreter', 'latex');
     lgd.NumColumns = 1; 
-    %lgd.Location = 'eastoutside'; % 凡例の数が多いので枠外配置
     lgd.Location = 'southwest'; % 枠内の左下に配置
     axis square; 
     hold off;
