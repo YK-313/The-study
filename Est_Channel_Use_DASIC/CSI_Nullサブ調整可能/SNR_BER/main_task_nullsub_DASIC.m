@@ -260,22 +260,31 @@ if strcmp(SIM.CSI, 'true')
                     EST.XivecAB_valid = RX.p(data_idx)./TX.pSym(data_idx,2); 
         
                 case {'SIC'}
-                    %% SIのレプリカを作成し，減算後パイロットからXi_ABを推定
-                    P.EST.Xi_valid = RX.p(data_idx) ./ TX.pSym(data_idx, 1);
-                    
-                    P.L = SIM.AAWinWid; 
-                    P.F_matrix = fft(eye(fft_ptA));
-                    phys_valid_idx_A = phys_idx_A(data_idx);
-                    
-                    P.F_partial_valid = P.F_matrix(phys_valid_idx_A, 1:P.L);
-                    P.EST.h_L = pinv(P.F_partial_valid) * P.EST.Xi_valid; 
-                    P.EST.h = [P.EST.h_L; zeros(fft_ptA - P.L, 1)]; 
-                    P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
-                    P.EST.XiHat = P.EST.Xi_vec_AA(phys_idx_A);
-                    
-                    % 2. SIレプリカの減算とXi_ABのLS推定 (有効サブキャリアのみ)
-                    TildePilot_valid = RX.p(data_idx) - P.EST.XiHat(data_idx) .* TX.pSym(data_idx, 1); 
-                    EST.XivecAB_valid = TildePilot_valid ./ TX.pSym(data_idx, 2);
+                    if strcmp(SIM.mode, 'Perfect')
+                        % 【Perfect時の処理】
+                        % パイロット受信時も真のSIチャネル(Xi_vec_AA)を用いてSI完璧に除去
+                        true_Xi_AA_valid = Xi_vec_AA(phys_idx_A(data_idx));
+                        TildePilot_valid = RX.p(data_idx) - true_Xi_AA_valid .* TX.pSym(data_idx, 1); 
+                        EST.XivecAB_valid = TildePilot_valid ./ TX.pSym(data_idx, 2);
+                    else
+                        % 【従来(Type1, Type2等)の処理】
+                        % Naive CSI推定を用いてSIレプリカを作成し、不完全なSICを行う
+                        P.EST.Xi_valid = RX.p(data_idx) ./ TX.pSym(data_idx, 1);
+                        
+                        P.L = SIM.AAWinWid; 
+                        P.F_matrix = fft(eye(fft_ptA));
+                        phys_valid_idx_A = phys_idx_A(data_idx);
+                        
+                        P.F_partial_valid = P.F_matrix(phys_valid_idx_A, 1:P.L);
+                        P.EST.h_L = pinv(P.F_partial_valid) * P.EST.Xi_valid; 
+                        P.EST.h = [P.EST.h_L; zeros(fft_ptA - P.L, 1)]; 
+                        P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
+                        P.EST.XiHat = P.EST.Xi_vec_AA(phys_idx_A);
+                        
+                        % SIレプリカの減算とXi_ABのLS推定 (有効サブキャリアのみ)
+                        TildePilot_valid = RX.p(data_idx) - P.EST.XiHat(data_idx) .* TX.pSym(data_idx, 1); 
+                        EST.XivecAB_valid = TildePilot_valid ./ TX.pSym(data_idx, 2);
+                    end
            end
     end
     
@@ -293,6 +302,9 @@ if strcmp(SIM.CSI, 'true')
     
     % 128ptのFFT結果からベースバンド(64個)を抽出
     EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
+    %窓関数をかけない場合
+    %EST.HatXivecAB = zeros(SIM.ndata, 1);          % まず64要素の0配列を作る
+    %EST.HatXivecAB(data_idx) = EST.XivecAB_valid;  % 有効な56箇所に推定値を代入
 else
     EST.HatXivecAB =Xi_vec_AB(phys_idx_B);
 end
