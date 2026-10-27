@@ -1,4 +1,4 @@
-%% CSIとNullサブキャリア両者調整可能ver
+%% CSIとNullサブキャリア両者調整可能ver (遅延時間-BER特性用)
 clear
 clc
 startTime = clock;
@@ -7,44 +7,78 @@ startTime = clock;
 %%%% Parameters %%%%
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
-SIM.SNR     =0:2:18;         % 信号対雑音電力比
-SIM.w_loop  = 5;            
-SIM.nsamp   = 5*10^SIM.w_loop;  
-SIM.err_max = SIM.nsamp/10;  
-SIM.SIR     = 0;           % 希望信号対干渉電力比
+SIM.SNR     = 10;            % 信号対雑音電力比 (今回は固定値)
+SIM.w_loop  = 3;             
+SIM.nsamp   = 3*10^SIM.w_loop;  
+SIM.err_max = 300;  
+SIM.SIR     = -50;           
 SIM.rho     = -3;
 SIM.Nrho    = -3;
-SIM.nsym    = 64;           % シンボル数         
-SIM.ndata = SIM.nsym;
-SIM.over = 2;
-SIM.delayA=1;%遅延波の離散チップ遅延時間(SIM.overと同じ値にすると1シンボル遅延になる)
-SIM.delayB=2;
-SIM.int=1; %インタリーバ 1:あり,2:なし
-SIM.AA=2;%AA間パス数
-SIM.AB=16;%AB間パス数
+SIM.nsym    = 64;                    
+SIM.ndata   = SIM.nsym;
+
+% IFFT方式で劣決定を回避するため、細かい遅延の再現用に十分なoverを設定可能
+SIM.over    = 64;            
+
+% CP長のまでの遅延をLogスケールで取得
+max_delay_subc = 16;
+max_delay_samp = max_delay_subc * SIM.over; 
+% 対数軸上で均等になるように点を取得
+SIM.delayA = unique(round(logspace(log10(1), log10(max_delay_samp), 10)));
+SIM.delayB = SIM.over;
+
+SIM.int = 1;                 
+SIM.AA  = 2;                 
+SIM.AB  = 16;                
 SIM.LLRclip = 10000000000;
-G.Q = 4; %変調次数
-G.ml=log2(G.Q);
-SIM.mode = 'xb_est1';    %チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2,est,xb_est,xb_est1,xb_est2) ※DASICはチャネル推定なしでDASICだけによるSIC,estは所望推定なし,xb_estはあり(DASICなし,1段,2段)
-SIM.detmode='BCJR';     %BCJR,MLD(使わない)
-SIM.CSI ='true';    %所望信号チャネルの推定ありorなし(完璧) 'true' or 'false' 
-SIM.PilotMode='simul'; %パイロットシンボルの送信タイミング (alterは交互(コード上ではSIなしになる) simulはSIと所望信号同時、基本的にはsimul)
-SIM.modeAB = 'SIC'; %ABチャネル推定用のモード選択 (WoSIC,SIC)
-SIM.null ='true';
+G.Q = 4;                     
+G.ml = log2(G.Q);
+
+% ★窓関数方式の選択と設定
+SIM.WindMode = 'IFFT';       % 'DFT'(pinv方式) または 'IFFT'(ゼロパディング方式)
+SIM.AAWinWid = 16;           % サブキャリア単位での窓幅 (基本はCP長)
+SIM.ABWinWid = 16;           
+
+SIM.mode = 'DASIC1';         % (Perfect, DASIC1, DASIC2, est, xb_est, xb_est1, xb_est2)
+SIM.detmode = 'BCJR';        
+SIM.CSI = 'true';           % 'true' or 'false'
+SIM.PilotMode = 'simul';     
+SIM.modeAB = 'SIC';          
+SIM.null = 'true';
  
-BER = zeros(size(SIM.SNR)); 
+BER = zeros(size(SIM.delayA)); 
+
+% グラフ描画用の実時間計算
+symtime = 32 * 10^-6; 
+delay_time = symtime / SIM.nsym / SIM.over .* SIM.delayA; 
 
 %%%%%%%%%%%%%%
 %%%% Task %%%%
 %%%%%%%%%%%%%%% 
-%for idx = 1:length(SIM.SNR)
-parfor idx = 1:length(SIM.SNR)
-    %RES = main_task_back0_DASIC(SIM.SNR(idx),idx,SIM,G); 
-    %RES = main_task_middle0_DASIC(SIM.SNR(idx),idx,SIM,G);
-    RES = main_task_nullsub_DASIC(SIM.SNR(idx),idx,SIM,G);
+parfor idx = 1:length(SIM.delayA)
+    RES = main_task_nullsub_DASIC_delay(SIM.SNR, idx, SIM, G, SIM.delayA(idx));
     BER(idx) = RES.BER;                       
 end
-elapsedTime = etime(clock, startTime);         % プログラムの実行時間を測定
+elapsedTime = etime(clock, startTime);         
 fprintf('Elapsed time is %2.1f seconds\n', elapsedTime); 
 
-plot_BER                   % BER特性図を作成
+%% === プロット処理 ===
+figure(1)
+LW = 2.0;
+FN = 'Times New Roman';
+FS = 18;
+MS = 8;
+
+% 横軸・縦軸ともに対数スケール
+h = loglog(delay_time.*10^6, BER, '-o');
+hold on
+set(h, 'MarkerFaceColor', '#A2142F', 'color', '#A2142F');
+grid on
+lb(1) = xlabel('Delay time [μs] (Log Scale)');
+lb(2) = ylabel('BER');
+
+axis([min(delay_time.*10^6) max(delay_time.*10^6) 10^(-5) 10^(0)]);
+
+set(gca, 'Linewidth', LW, 'FontName', FN, 'FontSize', FS, 'ytick', 10.^[-5:0], 'PlotBoxAspectRatio', [1 1 1]);
+set(lb, 'FontName', FN, 'FontSize', FS);
+set(h, 'Linewidth', LW, 'MarkerSize', MS);
