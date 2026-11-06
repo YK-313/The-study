@@ -96,56 +96,56 @@ stem(time_axis_us(valid_idx), 20*log10(amp_profile(valid_idx)), ...
     'filled', 'LineWidth', 2, 'MarkerSize', 6);
 % ※MATLABのlatexインタープリタでは $\mu$ はデフォルトで斜体になります。
 % もし完全に直立の「μ」にしたい場合は、ここだけ 'Interpreter', 'tex' に変更し、'Time [\mu s]' としてください。
-xlabel({'Time [μs]', '', '(a) SI Channel Impulse Response'}, ...
-    'FontName', 'Times New Roman', 'Interpreter', 'tex', 'FontSize', 20);
+xlabel({'Time [μs]', '', '(a) SI Channel Impulse Response.'}, ...
+    'FontName', 'Times New Roman', 'Interpreter', 'tex', 'FontSize', 25);
 ylabel('ISR [dB]', ...
-    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 20);
-ylim([0 55]); 
+    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 25);
+ylim([0 60]); 
 xlim([0 1.0]); 
 grid on;
-set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 20);
+set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 25);
 
 % --- Plot 2: FR (Frequency Response) ---
 subplot(2,2,2);
 plot(0:fft_ptA-1, 20*log10(abs(Xi_vec_AA)), 'b-', 'LineWidth', 1.5);
 hold on;
 stem(0:fft_ptA-1, 20*log10(abs(Xi_vec_AA)), 'b.', 'MarkerSize', 10);
-xlabel({'Subcarrier Index $k$', '', '(b) SI Frequency Response'}, ...
-    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 20);
+xlabel({'Subcarrier Index $k$', '', '(b) SI Frequency Response.'}, ...
+    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 25);
 ylabel('ISR [dB]', ...
-    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 20);
+    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 25);
 xlim([0 127]); 
-ylim([0 55]);
+ylim([0 60]);
 grid on;
-set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 20);
+set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 25);
 
 % --- Plot 3: 1-stage Residual SI ---
 subplot(2,2,3);
 plot(1:SIM.over*SIM.ndata-1, 20*log10(abs(ResidualSI(1:end))), 'b-', 'LineWidth', 1.5);
 hold on;
 stem(1:SIM.over*SIM.ndata-1, 20*log10(abs(ResidualSI(1:end))), 'b.', 'MarkerSize', 10);
-xlabel({'Subcarrier Index $k$', '', '(c) Residual SI power in frequency domain (1-stage)'}, ...
-    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 20);
+xlabel({'Subcarrier Index $k$', '', '(c) Residual SI power in frequency domain (1-stage).'}, ...
+    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 25);
 ylabel('ISR [dB]', ...
-    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 20);
+    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 25);
 xlim([1 127]); 
-ylim([0 55]);
+ylim([0 60]);
 grid on;
-set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 20);
+set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 25);
 
 % --- Plot 4: 2-stage Residual SI ---
 subplot(2,2,4);
 plot(1:SIM.over*SIM.ndata-2, 20*log10(abs(ResidualSI2(1:end))), 'b-', 'LineWidth', 1.5);
 hold on;
 stem(1:SIM.over*SIM.ndata-2, 20*log10(abs(ResidualSI2(1:end))), 'b.', 'MarkerSize', 10);
-xlabel({'Subcarrier Index $k$', '', '(d) Residual SI power in frequency domain (2-stage)'}, ...
-    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 20);
+xlabel({'Subcarrier Index $k$', '', '(d) Residual SI power in frequency domain (2-stage).'}, ...
+    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 25);
 ylabel('ISR [dB]', ...
-    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 20);
+    'FontName', 'Times New Roman', 'Interpreter', 'latex', 'FontSize', 25);
 xlim([1 127]); 
-ylim([0 55]);
+ylim([0 60]);
 grid on;
-set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 20);
+set(gca, 'TickLabelInterpreter', 'latex', 'FontName', 'Times New Roman', 'FontSize', 25);
 
 % 解析結果の表示
 mean_si = mean(abs(RX_bA).^2);
