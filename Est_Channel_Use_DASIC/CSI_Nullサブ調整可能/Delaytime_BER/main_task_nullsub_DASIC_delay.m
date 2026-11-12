@@ -18,8 +18,8 @@ viterbidecoder = comm.ViterbiDecoder(trellis,'InputFormat','hard','TerminationMe
 decUnquant = comm.ViterbiDecoder(trellis,'InputFormat','Unquantized','TracebackDepth',32,'TerminationMethod','Terminated');
 
 % ★窓幅をオーバーサンプリング倍率に合わせてスケーリング
-SIM.AAWinWid = SIM.AAWinWid * SIM.over;
-SIM.ABWinWid = SIM.ABWinWid * SIM.over;
+SIM.AAWinWid = SIM.AAWinWid * SIM.over+1; %CP長の遅延時間まで考慮するには(直接波+CP長の遅延後なので+1必要)
+SIM.ABWinWid = SIM.ABWinWid * SIM.over+1;
 
 for idx_loop = 1:SIM.nsamp
     switch(SIM.null)
@@ -236,7 +236,45 @@ if strcmp(SIM.CSI, 'true')
                                 P.EST.h_full = ifft(P.EST.Xi_zp, fft_ptA);
                                 P.EST.h_full(P.L+1:end) = 0; % 窓関数処理(後半ゼロクリア)
                                 P.EST.Xi_vec_AA = fft(P.EST.h_full, fft_ptA);
-                        end
+                               
+                            case 'MDFT' % 論文数式完全準拠モード
+                                P.F_matrix = fft(eye(fft_ptA));
+                                P.F_partial_all = P.F_matrix(:, 1:P.L); % 128行×P.L列 のフル高さ行列 (F_p)
+                                
+                                % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+                                P.EST.Xi_M = zeros(fft_ptA, 1);
+                                P.EST.Xi_M(phys_idx_A(data_idx)) = P.EST.Xi_valid;
+                                
+                                % 擬似逆行列の適用 (F_p^dagger * M * Xi)
+                                P.EST.h_L = pinv(P.F_partial_all) * P.EST.Xi_M; 
+                                P.EST.h = [P.EST.h_L; zeros(fft_ptA - P.L, 1)]; 
+                                
+                                % 空間への再変換 (F_p * F_p^dagger * M * Xi)
+                                P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
+                            case 'BMDFT' % 改良版：両側窓MDFT (Bilateral-window MDFT)
+                                P.F_matrix = fft(eye(fft_ptA));
+                                
+                                % 窓幅Wの設定 (P.Lが Lcp * alpha の場合)
+                                W_A = P.L; 
+                                
+                                % 前方(1��W)と後方(末尾からW個)のインデックスを作成
+                                win_idx_A = [1:W_A, (fft_ptA - W_A + 1):fft_ptA];
+                                P.F_partial_all = P.F_matrix(:, win_idx_A); 
+                                
+                                % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+                                P.EST.Xi_M = zeros(fft_ptA, 1);
+                                P.EST.Xi_M(phys_idx_A(data_idx)) = P.EST.Xi_valid;
+                                
+                                % 擬似逆行列の適用 (両側窓のフル行列を用いて一発で抽出)
+                                P.EST.h_win = pinv(P.F_partial_all) * P.EST.Xi_M; 
+                                
+                                % 128空間の元のインデックス位置(前方と後方)に正しく戻す
+                                P.EST.h = zeros(fft_ptA, 1);
+                                P.EST.h(win_idx_A) = P.EST.h_win;
+                                
+                                % 空間への再変換
+                                P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
+                            end
                         P.EST.XiHat = P.EST.Xi_vec_AA(phys_idx_A);
                         
                         TildePilot_valid = RX.p(data_idx) - P.EST.XiHat(data_idx) .* TX.pSym(data_idx, 1); 
@@ -262,7 +300,40 @@ if strcmp(SIM.CSI, 'true')
             EST.hP_full = ifft(EST.Xi_zp_AB, fft_ptB);
             EST.hP_full(Lp+1:end) = 0; % 窓関数処理
             EST.Xi_vec_AB = fft(EST.hP_full, fft_ptB);
-    end
+        case 'MDFT' % 論文数式完全準拠モード
+            F_matrix_p = fft(eye(fft_ptB));
+            F_partial_p_all = F_matrix_p(:, 1:Lp); % 128行×Lp列 のフル高さ行列 (F_p)
+            
+            % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+            EST.Xi_M_AB = zeros(fft_ptB, 1);
+            EST.Xi_M_AB(phys_idx_B(data_idx)) = EST.XivecAB_valid;
+            
+            % 擬似逆行列の適用 (F_p^dagger * M * Xi)
+            EST.h_LP = pinv(F_partial_p_all) * EST.Xi_M_AB; 
+            EST.hP = [EST.h_LP; zeros(fft_ptB - Lp, 1)]; 
+            
+            % 空間への再変換 (F_p * F_p^dagger * M * Xi)
+            EST.Xi_vec_AB = fft(EST.hP, fft_ptB);
+        case 'BMDFT'
+            F_matrix_p = fft(eye(fft_ptB));
+            
+            % 窓幅Wの設定 (Lpが窓幅)
+            W_B = Lp; 
+            
+            % 前方と後方の両側インデックス
+            win_idx_B = [1:W_B, (fft_ptB - W_B + 1):fft_ptB];
+            F_partial_p_all = F_matrix_p(:, win_idx_B); 
+            
+            EST.Xi_M_AB = zeros(fft_ptB, 1);
+            EST.Xi_M_AB(phys_idx_B(data_idx)) = EST.XivecAB_valid;
+            
+            EST.h_win_AB = pinv(F_partial_p_all) * EST.Xi_M_AB; 
+            
+            EST.hP = zeros(fft_ptB, 1);
+            EST.hP(win_idx_B) = EST.h_win_AB;
+            
+            EST.Xi_vec_AB = fft(EST.hP, fft_ptB);
+        end
     EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
 else
     EST.HatXivecAB =Xi_vec_AB(phys_idx_B);
@@ -709,6 +780,67 @@ end
                 EST.h_full = ifft(EST.Xi_zp_AA, fft_ptA);
                 EST.h_full(L+1:end) = 0; % 窓関数処理
                 EST.Xi_vec_AA = fft(EST.h_full, fft_ptA);
+            case 'MDFT' % 論文数式完全準拠モード
+                F_matrix = fft(eye(fft_ptA));
+                F_partial_all = F_matrix(:, 1:L); % 128行×L列 のフル高さ行列 (F_p)
+                
+                % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+                EST.Xi_M_AA = zeros(fft_ptA, 1);
+                EST.Xi_M_AA(phys_idx_A(data_idx)) = EST.Xi_valid;
+                
+                % 擬似逆行列の適用 (F_p^dagger * M * Xi)
+                EST.h_L = pinv(F_partial_all) * EST.Xi_M_AA;
+                EST.h = [EST.h_L; zeros(fft_ptA - L, 1)];
+                
+                % 空間への再変換 (F_p * F_p^dagger * M * Xi)
+                EST.Xi_vec_AA = fft(EST.h, fft_ptA);
+
+                % % ====================================================
+                % % 【検証用】MDFTにおけるSinc状漏れ込みの可視化
+                % if idx_loop == 1 % 最初の1ループ目だけ描画する
+                %     % 窓で打ち切る前の「128ptフルサイズのインパルス応答」を取得
+                %     h_full_MDFT = ifft(EST.Xi_M_AA, fft_ptA); 
+                % 
+                %     figure(300); clf;
+                %     % 推定されたインパルス応答（青）
+                %     stem(1:fft_ptA, abs(h_full_MDFT), 'b', 'LineWidth', 1.5, 'Marker', 'o');
+                %     hold on;
+                %     % 真のインパルス応答（赤）
+                %     stem(1:fft_ptA, abs(tmp_profile_AA), 'r', 'LineWidth', 1.5, 'Marker', 'x');
+                % 
+                %     % 窓枠の境界線（ここから右側を切り捨てている）
+                %     xline(L + 0.5, 'k--', 'LineWidth', 2, 'Label', 'Window Boundary');
+                % 
+                %     title('Time-domain Impulse Response (MDFT zero-padding)');
+                %     xlabel('Time Index (1 to 128)');
+                %     ylabel('Magnitude |h|');
+                %     legend('MDFT Estimated (Sinc-like leakage)', 'True Channel', 'Location', 'best');
+                %     grid on;
+                % 
+                %     % コマンドウィンドウで 'dbcont' と入力すると次の処理へ進みます
+                %     keyboard;
+                %  end
+                % % ====================================================
+                case 'BMDFT'
+                F_matrix = fft(eye(fft_ptA));
+                
+                % 窓幅Wの設定 (Lが窓幅)
+                W_A2 = L; 
+                
+                % 前方と後方の両側インデックス
+                win_idx_A2 = [1:W_A2, (fft_ptA - W_A2 + 1):fft_ptA];
+                F_partial_all = F_matrix(:, win_idx_A2); 
+                
+                EST.Xi_M_AA = zeros(fft_ptA, 1);
+                EST.Xi_M_AA(phys_idx_A(data_idx)) = EST.Xi_valid;
+                
+                EST.h_win_AA = pinv(F_partial_all) * EST.Xi_M_AA;
+                
+                EST.h = zeros(fft_ptA, 1);
+                EST.h(win_idx_A2) = EST.h_win_AA;
+                
+                EST.Xi_vec_AA = fft(EST.h, fft_ptA);
+               
         end
         EST.XiHat = EST.Xi_vec_AA(phys_idx_A);
         
@@ -850,7 +982,9 @@ end
     if(sum(ERR.noe_p)>SIM.err_max)
     break;
     end
-   fprintf('%d/%d %d/%d\n',idx,length(SIM.delayA),idx_loop,SIM.nsamp)
+   if mod(idx_loop, 1000) == 0
+        fprintf('Task %d: %d/%d\n', idx, idx_loop, SIM.nsamp);
+    end
 end
 SIM.En = En;
 SIM.BER = sum(ERR.noe,1) / sum(ERR.nod);
