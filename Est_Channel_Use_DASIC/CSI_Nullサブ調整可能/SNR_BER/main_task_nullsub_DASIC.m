@@ -48,11 +48,15 @@ end
     % 実際に送信する情報ビット数を逆算
     num_info_bits = (total_bits - bcjr_pad_bits) / conv_rate - conv_tail_bits;
     
-    % 2. データの生成
+   % 2. データの生成
     TX.b = randn(num_info_bits, 2) > 0; % 情報ビット
-if strcmp(SIM.CSI, 'true')
-    TX.p = randn(total_bits, 2) > 0;    % パイロット (データサブキャリア分)
-end
+    
+    if strcmp(SIM.CSI, 'true')
+        % QPSKモードの場合のみ、ランダムなビット系列を生成
+        if strcmp(SIM.PilotSym, 'QPSK')
+            TX.p = randn(total_bits, 2) > 0;    % パイロット (データサブキャリア分)
+        end
+    end
     
     % 畳み込み符号化
     TX.codedata(:,1) = step(ConEnc, TX.b(:,1)); 
@@ -79,7 +83,6 @@ end
     pad_zeros = zeros(bcjr_pad_bits / 2, 1); % 4ビット
     
     % 前半(Chunk 1)に入るはずのデータビット数を計算
-    % これにより、並び替え(ordered)後にpad_zerosがピタリと配列の「両端」に来ます
     idx_data1 = boundary_idx * bits_per_symbol - length(pad_zeros);
     
     TX.codedata_int = zeros(total_bits, 2);
@@ -87,22 +90,39 @@ end
     TX.codedata_int(:,2) = [TX.codedata_in(1:idx_data1, 2); pad_zeros; pad_zeros; TX.codedata_in(idx_data1+1:end, 2)];
 
     % 3. 変調とNullサブキャリアへのマッピング
-    % QPSK変調
+    % QPSK変調 (データ部は常にQPSK)
     TX_x_data = pskmod(double(TX.codedata_int), G.Q, pi/G.Q, InputType="bit");
-    if strcmp(SIM.CSI, 'true')
-        TX_p_data = pskmod(double(TX.p), G.Q, pi/G.Q, InputType="bit");
-    end
     
     % 全サブキャリアを 0 (Null) で初期化
     TX.x    = zeros(SIM.ndata, 2);
     TX.pSym = zeros(SIM.ndata, 2);
     
-    % 算出したデータインデックス位置にシンボルを配置
+    % 算出したデータインデックス位置にデータシンボルを配置
     TX.x(data_idx, 1) = TX_x_data(:, 1);
     TX.x(data_idx, 2) = TX_x_data(:, 2);
+    
+    % パイロットシンボルの生成と配置
     if strcmp(SIM.CSI, 'true')
-        TX.pSym(data_idx, 1) = TX_p_data(:, 1);
-        TX.pSym(data_idx, 2) = TX_p_data(:, 2);
+        switch SIM.PilotSym
+            case 'QPSK'
+                % 従来方式: ランダムなQPSK系列
+                TX_p_data = pskmod(double(TX.p), G.Q, pi/G.Q, InputType="bit");
+                TX.pSym(data_idx, 1) = TX_p_data(:, 1);
+                TX.pSym(data_idx, 2) = TX_p_data(:, 2);
+                
+            case 'LTF'
+                % 提案方式（先生の新シナリオ）: Aはデータ(QPSK)、BはLTF(BPSK)
+                LTF_left = [ 1,  1,  1,  1, -1, -1,  1,  1, -1,  1, -1,  1,  1,  1,  1,  1,  1, -1, -1,  1,  1, -1,  1, -1,  1,  1,  1,  1].';
+                LTF_right = [ 1, -1, -1,  1,  1, -1,  1, -1,  1, -1, -1, -1, -1, -1,  1,  1, -1, -1,  1, -1,  1, -1,  1,  1,  1,  1, -1, -1].';
+                LTF_seq = [LTF_left; LTF_right];
+                
+                % Aはデータ送信中なのでランダムQPSK (既知)
+                TX_pA_data = pskmod(double(randn(total_bits, 2) > 0), G.Q, pi/G.Q, InputType="bit");
+                TX.pSym(data_idx, 1) = TX_pA_data(:, 1); 
+                
+                % Bはパケット先頭なのでLTF (既知)
+                TX.pSym(data_idx, 2) = LTF_seq;
+        end
     end
     % 4. 送信信号を時間領域へ (IFFT)
     half_ndata = SIM.ndata / 2;
@@ -1128,7 +1148,10 @@ end
     if(sum(ERR.noe_p)>SIM.err_max)
     break;
     end
-    fprintf('%d/%d %d/%d\n',idx,length(SIM.SNR),idx_loop,SIM.nsamp)
+     % 1000ループに1回だけ出力するようにしてHPCの通信負荷を劇的に下げる
+    if mod(idx_loop, 1000) == 0
+        fprintf('Task %d: %d/%d\n', idx, idx_loop, SIM.nsamp);
+    end
 end
 SIM.En = En;
 SIM.BER = sum(ERR.noe,1) / sum(ERR.nod);
