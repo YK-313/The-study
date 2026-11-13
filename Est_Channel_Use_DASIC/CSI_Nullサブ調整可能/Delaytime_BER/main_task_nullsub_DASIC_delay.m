@@ -285,7 +285,7 @@ if strcmp(SIM.CSI, 'true')
     
     % šŠ–]ƒ`ƒƒƒlƒ‹(AB)‚Ì„’è
     Lp = SIM.ABWinWid; 
-    switch SIM.WindMode
+        switch SIM.WindMode
         case 'DFT'
             F_matrix_p = fft(eye(fft_ptB));
             phys_valid_idx_B = phys_idx_B(data_idx);
