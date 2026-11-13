@@ -17,7 +17,8 @@ alp2bit = de2bi(0:G.Q-1,'left-msb');
     APPDec = comm.APPDecoder(trellis,'Algorithm','True APP','TerminationMethod','Terminated');
     viterbidecoder = comm.ViterbiDecoder(trellis,'InputFormat','hard','TerminationMethod','Terminated');
     decUnquant = comm.ViterbiDecoder(trellis,'InputFormat','Unquantized','TracebackDepth',32,'TerminationMethod','Terminated');
-
+    SIM.AAWinWid = SIM.AAWinWid * SIM.over+1; %CP長の遅延時間まで考慮するには(直接波+CP長の遅延後なので+1必要)
+    SIM.ABWinWid = SIM.ABWinWid * SIM.over+1;
 for idx_loop = 1:SIM.nsamp
     % Nullサブキャリアの設定 (DC: 1番目, プラス側ガード: 上位3つ, マイナス側ガード: 下位4つ)
 switch(SIM.null)
@@ -88,7 +89,9 @@ end
     % 3. 変調とNullサブキャリアへのマッピング
     % QPSK変調
     TX_x_data = pskmod(double(TX.codedata_int), G.Q, pi/G.Q, InputType="bit");
-    TX_p_data = pskmod(double(TX.p), G.Q, pi/G.Q, InputType="bit");
+    if strcmp(SIM.CSI, 'true')
+        TX_p_data = pskmod(double(TX.p), G.Q, pi/G.Q, InputType="bit");
+    end
     
     % 全サブキャリアを 0 (Null) で初期化
     TX.x    = zeros(SIM.ndata, 2);
@@ -97,9 +100,10 @@ end
     % 算出したデータインデックス位置にシンボルを配置
     TX.x(data_idx, 1) = TX_x_data(:, 1);
     TX.x(data_idx, 2) = TX_x_data(:, 2);
-    TX.pSym(data_idx, 1) = TX_p_data(:, 1);
-    TX.pSym(data_idx, 2) = TX_p_data(:, 2);
-
+    if strcmp(SIM.CSI, 'true')
+        TX.pSym(data_idx, 1) = TX_p_data(:, 1);
+        TX.pSym(data_idx, 2) = TX_p_data(:, 2);
+    end
     % 4. 送信信号を時間領域へ (IFFT)
     half_ndata = SIM.ndata / 2;
     % 物理インデックスの計算 (DC~プラス帯域, マイナス帯域) ※列ベクトル化
@@ -109,14 +113,18 @@ end
     % 128pt用のゼロ配列を用意し、物理インデックスの位置に64個のデータを配置
     TX.x_128_A = zeros(fft_ptA, 1); TX.x_128_A(phys_idx_A) = TX.x(:,1);
     TX.x_128_B = zeros(fft_ptB, 1); TX.x_128_B(phys_idx_B) = TX.x(:,2);
-    TX.p_128_A = zeros(fft_ptA, 1); TX.p_128_A(phys_idx_A) = TX.pSym(:,1);
-    TX.p_128_B = zeros(fft_ptB, 1); TX.p_128_B(phys_idx_B) = TX.pSym(:,2);
+    if strcmp(SIM.CSI, 'true')
+        TX.p_128_A = zeros(fft_ptA, 1); TX.p_128_A(phys_idx_A) = TX.pSym(:,1);
+        TX.p_128_B = zeros(fft_ptB, 1); TX.p_128_B(phys_idx_B) = TX.pSym(:,2);
+    end
 
     % IFFT実行
     TX.sA = ifft(TX.x_128_A, fft_ptA) .* sqrt(fft_ptA);
     TX.sB = ifft(TX.x_128_B, fft_ptB) .* sqrt(fft_ptB);
-    TX.pA = ifft(TX.p_128_A, fft_ptA) .* sqrt(fft_ptA);
-    TX.pB = ifft(TX.p_128_B, fft_ptB) .* sqrt(fft_ptB);
+    if strcmp(SIM.CSI, 'true')
+        TX.pA = ifft(TX.p_128_A, fft_ptA) .* sqrt(fft_ptA);
+        TX.pB = ifft(TX.p_128_B, fft_ptB) .* sqrt(fft_ptB);
+    end
      %% 時空間通信路行列
 
         %位相回転あり
@@ -186,19 +194,23 @@ Xi_mat_AA = diag(sparse(Xi_vec_AA));
     % 干渉チャネルと希望チャネルの適用（チャネル行列を使用）
     RX.s_AA=H_circ_AA*TX.sA;
     RX.s_AB=H_circ_AB*TX.sB;
-    RX.pAA=H_circ_AA*TX.pA;
-    RX.pAB=H_circ_AB*TX.pB;
+    if strcmp(SIM.CSI, 'true')
+        RX.pAA=H_circ_AA*TX.pA;
+        RX.pAB=H_circ_AB*TX.pB;
+    end
     % 雑音の生成
     CH.f = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
     CH_f_128 = zeros(fft_ptB, 1);
     CH_f_128(phys_idx_B) = CH.f; %物理インデックスにノイズを配置
     CH.n = ifft(CH_f_128, fft_ptB) .* sqrt(fft_ptB);
     
-    % パイロット用のノイズ
-    CH.pf = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
-    CH_pf_128 = zeros(fft_ptB, 1);
-    CH_pf_128(phys_idx_B) = CH.pf; %物理インデックスにノイズを配置
-    CH.pn = ifft(CH_pf_128, fft_ptB) .* sqrt(fft_ptB);
+    if strcmp(SIM.CSI, 'true')
+        % パイロット用のノイズ
+        CH.pf = (randn(SIM.ndata, 1) + 1i * randn(SIM.ndata, 1)) * sqrt(CH.N0 / 2);
+        CH_pf_128 = zeros(fft_ptB, 1);
+        CH_pf_128(phys_idx_B) = CH.pf; %物理インデックスにノイズを配置
+        CH.pn = ifft(CH_pf_128, fft_ptB) .* sqrt(fft_ptB);
+    end
 %{
 % SNRの計算 (dBスケール)
 SNR_linear = sum(abs(RX.s_AB).^2) / sum(abs(CH.n).^2);
@@ -209,17 +221,21 @@ SNR_dB = 10 * log10(SNR_linear);
     RX.bA_128 = fft(RX.s_AA, fft_ptA)./sqrt(fft_ptA);
     RX.bB_128 = fft(RX.s_AB, fft_ptB)./sqrt(fft_ptB);
     RX.bN_128 = fft(CH.n, fft_ptB)./sqrt(fft_ptB);
-    RX.pA_128 = fft(RX.pAA, fft_ptA)./sqrt(fft_ptA);
-    RX.pB_128 = fft(RX.pAB, fft_ptB)./sqrt(fft_ptB);
-    RX.pN_128 = fft(CH.pn, fft_ptB)./sqrt(fft_ptB);
+    if strcmp(SIM.CSI, 'true')
+        RX.pA_128 = fft(RX.pAA, fft_ptA)./sqrt(fft_ptA);
+        RX.pB_128 = fft(RX.pAB, fft_ptB)./sqrt(fft_ptB);
+        RX.pN_128 = fft(CH.pn, fft_ptB)./sqrt(fft_ptB);
+    end
     
     % 物理インデックスから本来のベースバンド(SIM.ndata個)のみを抽出
     RX.bA = RX.bA_128(phys_idx_A);
     RX.bB = RX.bB_128(phys_idx_B);
     RX.bN = RX.bN_128(phys_idx_B);
-    RX.pA = RX.pA_128(phys_idx_A);
-    RX.pB = RX.pB_128(phys_idx_B);
-    RX.pN = RX.pN_128(phys_idx_B);
+    if strcmp(SIM.CSI, 'true')
+        RX.pA = RX.pA_128(phys_idx_A);
+        RX.pB = RX.pB_128(phys_idx_B);
+        RX.pN = RX.pN_128(phys_idx_B);
+    end
 
     RX.b = RX.bA + RX.bB + RX.bN; % 抽出された64個の受信シンボルで構成
     powA = sum(abs(RX.bA).^2);
@@ -229,55 +245,202 @@ SNR_dB = 10 * log10(SNR_linear);
 % 10*log10(powB/powN)
     % 受信電力計算（RX電力）
     ERR.rx_pow(idx_loop) = sum(abs(RX.b).^2);
+if strcmp(SIM.CSI, 'true')
+    %% 所望信号チャネルの推定
+    switch(SIM.PilotMode)
+        case 'alter'
+            RX.p=RX.pB+RX.pN; %パイロット送信時はSIなし
+            % 【修正】全帯域ではなく、有効サブキャリア(data_idx)のみで計算する
+            EST.XivecAB_valid = RX.p(data_idx)./TX.pSym(data_idx,2); 
+            
+        case 'simul'
+            RX.p=RX.pB+RX.pA+RX.pN; %同時にパイロット送信
+            switch(SIM.modeAB)
 
-%% 所望信号チャネルの推定
-switch(SIM.PilotMode)
-    case 'alter'
-        RX.p=RX.pB+RX.pN; %パイロット送信時はSIなし
-        % 【修正】全帯域ではなく、有効サブキャリア(data_idx)のみで計算する
-        EST.XivecAB_valid = RX.p(data_idx)./TX.pSym(data_idx,2); 
+                case{'Perfect'}
+                        % 【Perfect時の処理】
+                        % パイロット受信時も真のSIチャネル(Xi_vec_AA)を用いてSI完璧に除去
+                        true_Xi_AA_valid = Xi_vec_AA(phys_idx_A(data_idx));
+                        TildePilot_valid = RX.p(data_idx) - true_Xi_AA_valid .* TX.pSym(data_idx, 1); 
+                        EST.XivecAB_valid = TildePilot_valid ./ TX.pSym(data_idx, 2);
+             
+                case {'WoSIC'}
+                    % 【修正】こちらも有効サブキャリアのみで計算
+                    EST.XivecAB_valid = RX.p(data_idx)./TX.pSym(data_idx,2); 
+
+                case {'DASIC'}
+                    % --- 先生提案のDASICベースLSチャネル推定 ---
+                    % 1. パイロット信号を周波数順(マイナス帯域→プラス帯域)に並べ替え
+                    Y_p_ord = RX.p(freq_ordered_idx);
+                    XA_p_ord = TX.pSym(freq_ordered_idx, 1);
+                    XB_p_ord = TX.pSym(freq_ordered_idx, 2);
+                    
+                    N_val = num_data_subc;
+                    
+                    % 2. 位相シフト φ_A を計算 (1番目はN番目からの巡回シフトとする)
+                    phi_A = XA_p_ord ./ circshift(XA_p_ord, 1);
+                    
+                    % 3. 受信信号のDASIC処理 (先生の式の左辺: y_tilde_A)
+                    Y_tilde_A = Y_p_ord - phi_A .* circshift(Y_p_ord, 1);
+                    
+                    % 4. 先生の提案された行列の構築 (先生の式の右辺の行列)
+                    X_B_matrix = zeros(N_val, N_val);
+                    for k = 1:N_val
+                        % 対角成分: x_B[k]
+                        X_B_matrix(k, k) = XB_p_ord(k);
+                        
+                        % 非対角成分(左下): -x_B[k-1] * φ_A[k]
+                        if k == 1
+                            % 1行目だけは巡回して右上に配置 (先生の式の -x_B[4]φ_A[1] に相当)
+                            X_B_matrix(k, N_val) = -XB_p_ord(N_val) * phi_A(k);
+                        else
+                            X_B_matrix(k, k-1) = -XB_p_ord(k-1) * phi_A(k);
+                        end
+                    end
+                    
+                    % 5. 擬似逆行列を用いてチャネル推定値 ξ_AB を一発で解く
+                    % （※行列式が微小になるケースへの耐性を上げるため inv ではなく pinv を使用）
+                    EST_Xi_AB_ord = pinv(X_B_matrix) * Y_tilde_A; 
+                    
+                    % 6. 順序を元(物理インデックスの data_idx 順)に戻して保存
+                    EST.XivecAB_valid = zeros(N_val, 1);
+                    [~, inv_idx] = ismember(data_idx, freq_ordered_idx);
+                    EST.XivecAB_valid = EST_Xi_AB_ord(inv_idx);
         
-    case 'simul'
-        RX.p=RX.pB+RX.pA+RX.pN; %同時にパイロット送信
-        switch(SIM.modeAB)
-            case {'WoSIC'}
-                % 【修正】こちらも有効サブキャリアのみで計算
-                EST.XivecAB_valid = RX.p(data_idx)./TX.pSym(data_idx,2); 
+        
+                case {'SIC'}
+                        % 【従来(Type1, Type2等)の処理】
+                        % Naive CSI推定を用いてSIレプリカを作成し、不完全なSICを行う
+                        P.EST.Xi_valid = RX.p(data_idx) ./ TX.pSym(data_idx, 1);
+                        P.L = SIM.AAWinWid; 
+                        
+                         % ★SIチャネル(AA)の推定 (パイロット用)
+                            switch SIM.WindMode
+                            case 'DFT'
+                                P.F_matrix = fft(eye(fft_ptA));
+                                phys_valid_idx_A = phys_idx_A(data_idx);
+                                P.F_partial_valid = P.F_matrix(phys_valid_idx_A, 1:P.L);
+                                P.EST.h_L = pinv(P.F_partial_valid) * P.EST.Xi_valid; 
+                                P.EST.h = [P.EST.h_L; zeros(fft_ptA - P.L, 1)]; 
+                                P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
+                                
+                            case 'IFFT'
+                                P.EST.Xi_zp = zeros(fft_ptA, 1);
+                                P.EST.Xi_zp(phys_idx_A(data_idx)) = P.EST.Xi_valid;
+                                P.EST.h_full = ifft(P.EST.Xi_zp, fft_ptA);
+                                P.EST.h_full(P.L+1:end) = 0; % 窓関数処理(後半ゼロクリア)
+                                P.EST.Xi_vec_AA = fft(P.EST.h_full, fft_ptA);
+                               
+                            case 'MDFT' % 論文数式完全準拠モード
+                                P.F_matrix = fft(eye(fft_ptA));
+                                P.F_partial_all = P.F_matrix(:, 1:P.L); % 128行×P.L列 のフル高さ行列 (F_p)
+                                
+                                % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+                                P.EST.Xi_M = zeros(fft_ptA, 1);
+                                P.EST.Xi_M(phys_idx_A(data_idx)) = P.EST.Xi_valid;
+                                
+                                % 擬似逆行列の適用 (F_p^dagger * M * Xi)
+                                P.EST.h_L = pinv(P.F_partial_all) * P.EST.Xi_M; 
+                                P.EST.h = [P.EST.h_L; zeros(fft_ptA - P.L, 1)]; 
+                                
+                                % 空間への再変換 (F_p * F_p^dagger * M * Xi)
+                                P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
+                            case 'BMDFT' % 改良版：両側窓MDFT (Bilateral-window MDFT)
+                                P.F_matrix = fft(eye(fft_ptA));
+                                
+                                % 窓幅Wの設定 (P.Lが Lcp * alpha の場合)
+                                W_A = P.L; 
+                                
+                                % 前方(1�W)と後方(末尾からW個)のインデックスを作成
+                                win_idx_A = [1:W_A, (fft_ptA - W_A + 1):fft_ptA];
+                                P.F_partial_all = P.F_matrix(:, win_idx_A); 
+                                
+                                % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+                                P.EST.Xi_M = zeros(fft_ptA, 1);
+                                P.EST.Xi_M(phys_idx_A(data_idx)) = P.EST.Xi_valid;
+                                
+                                % 擬似逆行列の適用 (両側窓のフル行列を用いて一発で抽出)
+                                P.EST.h_win = pinv(P.F_partial_all) * P.EST.Xi_M; 
+                                
+                                % 128空間の元のインデックス位置(前方と後方)に正しく戻す
+                                P.EST.h = zeros(fft_ptA, 1);
+                                P.EST.h(win_idx_A) = P.EST.h_win;
+                                
+                                % 空間への再変換
+                                P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
+                           case 'Wo'
+                               P.EST.Xi_vec_AA = zeros(fft_ptA, 1);
+                               P.EST.Xi_vec_AA(phys_idx_A(data_idx)) = P.EST.Xi_valid;
+                           end
+                        P.EST.XiHat = P.EST.Xi_vec_AA(phys_idx_A);
+                        
+                        % SIレプリカの減算とXi_ABのLS推定 (有効サブキャリアのみ)
+                        TildePilot_valid = RX.p(data_idx) - P.EST.XiHat(data_idx) .* TX.pSym(data_idx, 1); 
+                        EST.XivecAB_valid = TildePilot_valid ./ TX.pSym(data_idx, 2);
+            end
+        end
+    end
     
-            case {'SIC'}
-                %% SIのレプリカを作成し，減算後パイロットからXi_ABを推定
-                P.EST.Xi_valid = RX.p(data_idx) ./ TX.pSym(data_idx, 1);
-                
-                P.L = SIM.delayA * num_of_paths_AA; 
-                P.F_matrix = fft(eye(fft_ptA)); 
-                phys_valid_idx_A = phys_idx_A(data_idx);
-                
-                P.F_partial_valid = P.F_matrix(phys_valid_idx_A, 1:P.L);
-                P.EST.h_L = pinv(P.F_partial_valid) * P.EST.Xi_valid; 
-                P.EST.h = [P.EST.h_L; zeros(fft_ptA - P.L, 1)]; 
-                P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
-                P.EST.XiHat = P.EST.Xi_vec_AA(phys_idx_A);
-                
-                % 2. SIレプリカの減算とXi_ABのLS推定 (有効サブキャリアのみ)
-                TildePilot_valid = RX.p(data_idx) - P.EST.XiHat(data_idx) .* TX.pSym(data_idx, 1); 
-                EST.XivecAB_valid = TildePilot_valid ./ TX.pSym(data_idx, 2);
-       end
+    % 3. Xi_ABの時間領域補間と全帯域復元
+    % (ここからは先ほどのコードのままでOKです)
+    Lp = SIM.ABWinWid; 
+        switch SIM.WindMode
+        case 'DFT'
+            F_matrix_p = fft(eye(fft_ptB));
+            phys_valid_idx_B = phys_idx_B(data_idx);
+            F_partial_p_valid = F_matrix_p(phys_valid_idx_B, 1:Lp);
+            EST.h_LP = pinv(F_partial_p_valid) * EST.XivecAB_valid; 
+            EST.hP = [EST.h_LP; zeros(fft_ptB - Lp, 1)]; 
+            EST.Xi_vec_AB = fft(EST.hP, fft_ptB); 
+            
+        case 'IFFT'
+            EST.Xi_zp_AB = zeros(fft_ptB, 1);
+            EST.Xi_zp_AB(phys_idx_B(data_idx)) = EST.XivecAB_valid;
+            EST.hP_full = ifft(EST.Xi_zp_AB, fft_ptB);
+            EST.hP_full(Lp+1:end) = 0; % 窓関数処理
+            EST.Xi_vec_AB = fft(EST.hP_full, fft_ptB);
+        case 'MDFT' % 論文数式完全準拠モード
+            F_matrix_p = fft(eye(fft_ptB));
+            F_partial_p_all = F_matrix_p(:, 1:Lp); % 128行×Lp列 のフル高さ行列 (F_p)
+            
+            % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+            EST.Xi_M_AB = zeros(fft_ptB, 1);
+            EST.Xi_M_AB(phys_idx_B(data_idx)) = EST.XivecAB_valid;
+            
+            % 擬似逆行列の適用 (F_p^dagger * M * Xi)
+            EST.h_LP = pinv(F_partial_p_all) * EST.Xi_M_AB; 
+            EST.hP = [EST.h_LP; zeros(fft_ptB - Lp, 1)]; 
+            
+            % 空間への再変換 (F_p * F_p^dagger * M * Xi)
+            EST.Xi_vec_AB = fft(EST.hP, fft_ptB);
+        case 'BMDFT'
+            F_matrix_p = fft(eye(fft_ptB));
+            
+            % 窓幅Wの設定 (Lpが窓幅)
+            W_B = Lp; 
+            
+            % 前方と後方の両側インデックス
+            win_idx_B = [1:W_B, (fft_ptB - W_B + 1):fft_ptB];
+            F_partial_p_all = F_matrix_p(:, win_idx_B); 
+            
+            EST.Xi_M_AB = zeros(fft_ptB, 1);
+            EST.Xi_M_AB(phys_idx_B(data_idx)) = EST.XivecAB_valid;
+            
+            EST.h_win_AB = pinv(F_partial_p_all) * EST.Xi_M_AB; 
+            
+            EST.hP = zeros(fft_ptB, 1);
+            EST.hP(win_idx_B) = EST.h_win_AB;
+            
+            EST.Xi_vec_AB = fft(EST.hP, fft_ptB);
+        case 'Wo'
+            EST.Xi_vec_AB = zeros(fft_ptB, 1);
+            EST.Xi_vec_AB(phys_idx_B(data_idx)) = EST.XivecAB_valid; 
+        end
+    EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
+    
+else
+    EST.HatXivecAB =Xi_vec_AB(phys_idx_B);
 end
-
-% 3. Xi_ABの時間領域補間と全帯域復元
-% (ここからは先ほどのコードのままでOKです)
-Lp = SIM.delayB * num_of_paths_AB; 
-F_matrix_p = fft(eye(fft_ptB)); 
-
-phys_valid_idx_B = phys_idx_B(data_idx);
-
-F_partial_p_valid = F_matrix_p(phys_valid_idx_B, 1:Lp);
-EST.h_LP = pinv(F_partial_p_valid) * EST.XivecAB_valid; 
-EST.hP = [EST.h_LP; zeros(fft_ptB - Lp, 1)]; 
-EST.Xi_vec_AB = fft(EST.hP, fft_ptB); 
-
-% 128ptのFFT結果からベースバンド(64個)を抽出
-EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
 
     %nullサブキャリアの除去・有効なサブキャリアのみを抽出
     RX.b_valid = RX.b(data_idx);
@@ -321,7 +484,7 @@ EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
             
                 for idx_in = 1:trel.num_in
                     for sigi=1:trel.num_state %状態i
-                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.b_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
+                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(RX.b_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/CH.N0;%尤度の計算
                     end
                 end
                 
@@ -707,19 +870,61 @@ EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
     switch SIM.mode
     case {'est','xb_est','xb_est1','xb_est2'}
         %% 帯域制限(Virtual Subcarrier)を考慮した時間領域チャネル復元
-        L = SIM.delayA * num_of_paths_AA; 
-        F_matrix = fft(eye(fft_ptA)); 
-        
-        % 【修正1】128pt上の正しい物理インデックスを特定する
-        phys_valid_idx_A = phys_idx_A(data_idx);
-        
-        % 【修正2】物理インデックスを使ってF行列を抽出
-        F_partial_valid = F_matrix(phys_valid_idx_A, 1:L);
-        
-        EST.h_L = pinv(F_partial_valid) * EST.Xi_valid;
-        EST.h = [EST.h_L; zeros(fft_ptA - L, 1)];
-        EST.Xi_vec_AA = fft(EST.h, fft_ptA);
-        
+        L = SIM.AAWinWid; 
+            % ★データを用いたSIチャネル推定の窓関数処理
+            switch SIM.WindMode
+            case 'DFT'
+                F_matrix = fft(eye(fft_ptA));
+                phys_valid_idx_A = phys_idx_A(data_idx);
+                F_partial_valid = F_matrix(phys_valid_idx_A, 1:L);
+                EST.h_L = pinv(F_partial_valid) * EST.Xi_valid;
+                EST.h = [EST.h_L; zeros(fft_ptA - L, 1)];
+                EST.Xi_vec_AA = fft(EST.h, fft_ptA);
+                
+            case 'IFFT'
+                EST.Xi_zp_AA = zeros(fft_ptA, 1);
+                EST.Xi_zp_AA(phys_idx_A(data_idx)) = EST.Xi_valid;
+                EST.h_full = ifft(EST.Xi_zp_AA, fft_ptA);
+                EST.h_full(L+1:end) = 0; % 窓関数処理
+                EST.Xi_vec_AA = fft(EST.h_full, fft_ptA);
+            case 'MDFT' % 論文数式完全準拠モード
+                F_matrix = fft(eye(fft_ptA));
+                F_partial_all = F_matrix(:, 1:L); % 128行×L列 のフル高さ行列 (F_p)
+                
+                % 配置行列 M の適用 (Null部分を0として128ptベクトルを構成)
+                EST.Xi_M_AA = zeros(fft_ptA, 1);
+                EST.Xi_M_AA(phys_idx_A(data_idx)) = EST.Xi_valid;
+                
+                % 擬似逆行列の適用 (F_p^dagger * M * Xi)
+                EST.h_L = pinv(F_partial_all) * EST.Xi_M_AA;
+                EST.h = [EST.h_L; zeros(fft_ptA - L, 1)];
+                
+                % 空間への再変換 (F_p * F_p^dagger * M * Xi)
+                EST.Xi_vec_AA = fft(EST.h, fft_ptA);
+               
+            case 'BMDFT'
+                F_matrix = fft(eye(fft_ptA));
+                
+                % 窓幅Wの設定 (Lが窓幅)
+                W_A2 = L; 
+                
+                % 前方と後方の両側インデックス
+                win_idx_A2 = [1:W_A2, (fft_ptA - W_A2 + 1):fft_ptA];
+                F_partial_all = F_matrix(:, win_idx_A2); 
+                
+                EST.Xi_M_AA = zeros(fft_ptA, 1);
+                EST.Xi_M_AA(phys_idx_A(data_idx)) = EST.Xi_valid;
+                
+                EST.h_win_AA = pinv(F_partial_all) * EST.Xi_M_AA;
+                
+                EST.h = zeros(fft_ptA, 1);
+                EST.h(win_idx_A2) = EST.h_win_AA;
+                
+                EST.Xi_vec_AA = fft(EST.h, fft_ptA);
+            case 'Wo'
+                EST.Xi_vec_AA = zeros(fft_ptA, 1);
+                EST.Xi_vec_AA(phys_idx_A(data_idx)) = EST.Xi_valid; % P.EST ではなく EST を使う             
+            end
         % 【修正3】128ptの両端から64個のベースバンドチャネルを抽出
         EST.XiHat = EST.Xi_vec_AA(phys_idx_A);
     
@@ -745,7 +950,7 @@ EST.HatXivecAB = EST.Xi_vec_AB(phys_idx_B);
                 trel = BCJRTrellis(TX,xx,CH,G,0,1);
             for idx_in = 1:trel.num_in
                 for sigi=1:trel.num_state %状態i
-                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(tilde_xb_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/2/CH.N0;%尤度の計算
+                    BCJR.Gamma(sigi,trel.next_state(sigi,idx_in)+1,xx) = (-1*(abs(tilde_xb_ordered(xx+1)-trel.outputs(sigi,idx_in)))^2)/CH.N0;%尤度の計算
                 end
             end
             

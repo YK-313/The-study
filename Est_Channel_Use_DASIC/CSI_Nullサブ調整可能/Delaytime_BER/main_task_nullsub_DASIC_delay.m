@@ -210,6 +210,45 @@ if strcmp(SIM.CSI, 'true')
             switch(SIM.modeAB)
                 case {'WoSIC'}
                     EST.XivecAB_valid = RX.p(data_idx)./TX.pSym(data_idx,2); 
+
+                case {'DASIC'}
+                    % --- 先生提案のDASICベースLSチャネル推定 ---
+                    % 1. パイロット信号を周波数順(マイナス帯域→プラス帯域)に並べ替え
+                    Y_p_ord = RX.p(freq_ordered_idx);
+                    XA_p_ord = TX.pSym(freq_ordered_idx, 1);
+                    XB_p_ord = TX.pSym(freq_ordered_idx, 2);
+                    
+                    N_val = num_data_subc;
+                    
+                    % 2. 位相シフト φ_A を計算 (1番目はN番目からの巡回シフトとする)
+                    phi_A = XA_p_ord ./ circshift(XA_p_ord, 1);
+                    
+                    % 3. 受信信号のDASIC処理 (先生の式の左辺: y_tilde_A)
+                    Y_tilde_A = Y_p_ord - phi_A .* circshift(Y_p_ord, 1);
+                    
+                    % 4. 先生の提案された行列の構築 (先生の式の右辺の行列)
+                    X_B_matrix = zeros(N_val, N_val);
+                    for k = 1:N_val
+                        % 対角成分: x_B[k]
+                        X_B_matrix(k, k) = XB_p_ord(k);
+                        
+                        % 非対角成分(左下): -x_B[k-1] * φ_A[k]
+                        if k == 1
+                            % 1行目だけは巡回して右上に配置 (先生の式の -x_B[4]φ_A[1] に相当)
+                            X_B_matrix(k, N_val) = -XB_p_ord(N_val) * phi_A(k);
+                        else
+                            X_B_matrix(k, k-1) = -XB_p_ord(k-1) * phi_A(k);
+                        end
+                    end
+                    
+                    % 5. 擬似逆行列を用いてチャネル推定値 ξ_AB を一発で解く
+                    % （※行列式が微小になるケースへの耐性を上げるため inv ではなく pinv を使用）
+                    EST_Xi_AB_ord = pinv(X_B_matrix) * Y_tilde_A; 
+                    
+                    % 6. 順序を元(物理インデックスの data_idx 順)に戻して保存
+                    EST.XivecAB_valid = zeros(N_val, 1);
+                    [~, inv_idx] = ismember(data_idx, freq_ordered_idx);
+                    EST.XivecAB_valid = EST_Xi_AB_ord(inv_idx);
         
                 case {'SIC'}
                     if strcmp(SIM.mode, 'Perfect')
@@ -274,13 +313,13 @@ if strcmp(SIM.CSI, 'true')
                                 
                                 % 空間への再変換
                                 P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
-                            end
+                         end
                         P.EST.XiHat = P.EST.Xi_vec_AA(phys_idx_A);
                         
                         TildePilot_valid = RX.p(data_idx) - P.EST.XiHat(data_idx) .* TX.pSym(data_idx, 1); 
                         EST.XivecAB_valid = TildePilot_valid ./ TX.pSym(data_idx, 2);
                     end
-           end
+             end
     end
     
     % ★所望チャネル(AB)の推定
