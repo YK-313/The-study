@@ -1,4 +1,4 @@
-figure(2)
+figure(4)
 LW = 2.0;
 FN = 'Times New Roman';
 FS = 18;

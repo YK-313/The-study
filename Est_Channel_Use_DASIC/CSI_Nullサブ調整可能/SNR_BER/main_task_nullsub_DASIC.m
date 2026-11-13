@@ -308,57 +308,65 @@ if strcmp(SIM.CSI, 'true')
                     EST.XivecAB_valid = EST_Xi_AB_ord(inv_idx);
 
                 case {'DASIC2'}
-                    % --- 二段DASICベース LSチャネル推定 ---
+                    % --- 2段DASICベース LSチャネル推定 (段階的処理版) ---
                     Y_p_ord = RX.p(freq_ordered_idx);
                     XA_p_ord = TX.pSym(freq_ordered_idx, 1);
                     XB_p_ord = TX.pSym(freq_ordered_idx, 2);
                     
                     N_val = num_data_subc;
                     
-                    % 1. 位相シフトの計算 (巡回シフト)
-                    % 1個前との位相シフト φ_A
+                    % ====================================================
+                    % 1. 1回分のDASIC操作を表現する「差分オペレータ行列」の作成
+                    % ====================================================
+                    % 隣接サブキャリア間の位相シフト phi_A を計算
                     phi_A = XA_p_ord ./ circshift(XA_p_ord, 1);
-                    % 2個前との位相シフト ψ_A = φ_A[k] * φ_A[k-1]
-                    psi_A = phi_A .* circshift(phi_A, 1);
                     
-                    % 2. 2段DASIC 受信信号ベクトルの計算 (左辺)
-                    % y[k] - 2*φ_A[k]*y[k-1] + ψ_A[k]*y[k-2]
-                    Y_tilde_A2 = Y_p_ord - 2 * phi_A .* circshift(Y_p_ord, 1) + psi_A .* circshift(Y_p_ord, 2);
-                                         
-                    % 3. 2段DASIC 行列の構築 (右辺)
-                    X_B_matrix2 = zeros(N_val, N_val);
+                    % 差分オペレータ行列 (Diff_Op) の構築
+                    % y_tilde[k] = y[k] - phi_A[k]*y[k-1] という操作を行列化する
+                    Diff_Op = eye(N_val); % 対角成分(自身の信号)は 1
                     for k = 1:N_val
-                        % 対角成分: x_B[k]
-                        X_B_matrix2(k, k) = XB_p_ord(k);
-                        
-                        % k-1成分: -2 * φ_A[k] * x_B[k-1]
                         idx_minus_1 = k - 1;
-                        if idx_minus_1 < 1, idx_minus_1 = idx_minus_1 + N_val; end
-                        X_B_matrix2(k, idx_minus_1) = -2 * phi_A(k) * XB_p_ord(idx_minus_1);
-                        
-                        % k-2成分: ψ_A[k] * x_B[k-2]
-                        idx_minus_2 = k - 2;
-                        if idx_minus_2 < 1, idx_minus_2 = idx_minus_2 + N_val; end
-                        X_B_matrix2(k, idx_minus_2) = psi_A(k) * XB_p_ord(idx_minus_2);
+                        if idx_minus_1 < 1
+                            idx_minus_1 = idx_minus_1 + N_val; % 巡回
+                        end
+                        % 左下(1個前の信号)に -phi_A[k] を配置
+                        Diff_Op(k, idx_minus_1) = -phi_A(k);
                     end
                     
+                    % 所望信号の初期行列 (対角成分にのみ x_B が存在する状態)
+                    X_B_init = diag(XB_p_ord);
+                    
+                    % ====================================================
+                    % 2. 【1段目 (Stage 1)】 DASIC処理の実行
+                    % ====================================================
+                    % 受信信号と所望行列に、DASIC操作を1回適用する
+                    Y_tilde_1 = Diff_Op * Y_p_ord;
+                    X_B_mat_1 = Diff_Op * X_B_init;
+                    
+                    % ====================================================
+                    % 3. 【2段目 (Stage 2)】 1段目の出力に再度DASIC処理を実行
+                    % ====================================================
+                    % 1段目で処理された変数に対して、もう一度全く同じ操作を適用する
+                    Y_tilde_2 = Diff_Op * Y_tilde_1;
+                    X_B_mat_2 = Diff_Op * X_B_mat_1;
+                    
+                    % ====================================================
                     % 4. チャネル不連続箇所の除外 (ガード跨ぎとDC跨ぎ)
-                    % 2段DASICでは「1個前」と「2個前」を参照するため、影響範囲が広がる
-                    % k=1: N_valとN_val-1跨ぎ (ガード)
-                    % k=2: 1とN_val跨ぎ (ガード)
-                    % k=29 (N_val/2+1): N_val/2とN_val/2-1跨ぎ (DC)
-                    % k=30 (N_val/2+2): N_val/2+1とN_val/2跨ぎ (DC)
+                    % ====================================================
+                    % 2段DASICは過去2サブキャリア分の影響を受けるため、
+                    % 境界の直後2つ分の行 (方程式) が汚染されるので除外する
+                    % (k=1,2: ガード跨ぎ / k=29,30: DC跨ぎ)
                     invalid_rows2 = [1, 2, (N_val/2 + 1), (N_val/2 + 2)]; 
                     valid_rows2 = setdiff(1:N_val, invalid_rows2);
                     
-                    X_B_matrix_pruned2 = X_B_matrix2(valid_rows2, :);
-                    Y_tilde_A_pruned2 = Y_tilde_A2(valid_rows2);
+                    Y_tilde_2_pruned = Y_tilde_2(valid_rows2);
+                    X_B_mat_2_pruned = X_B_mat_2(valid_rows2, :);
                     
-                    % 5. 擬似逆行列によるチャネル推定
-                    % (52行×56列の劣決定方程式を最小ノルムで解く)
-                    EST_Xi_AB_ord = pinv(X_B_matrix_pruned2) * Y_tilde_A_pruned2; 
+                    % ====================================================
+                    % 5. 擬似逆行列によるチャネル推定と物理順序への復元
+                    % ====================================================
+                    EST_Xi_AB_ord = pinv(X_B_mat_2_pruned) * Y_tilde_2_pruned; 
                     
-                    % 6. 物理インデックス順への復元
                     EST.XivecAB_valid = zeros(N_val, 1);
                     [~, inv_idx] = ismember(data_idx, freq_ordered_idx);
                     EST.XivecAB_valid = EST_Xi_AB_ord(inv_idx);
@@ -370,7 +378,7 @@ if strcmp(SIM.CSI, 'true')
                         P.L = SIM.AAWinWid; 
                         
                          % ★SIチャネル(AA)の推定 (パイロット用)
-                            switch SIM.WindMode
+                            switch SIM.WindModeAA
                             case 'DFT'
                                 P.F_matrix = fft(eye(fft_ptA));
                                 phys_valid_idx_A = phys_idx_A(data_idx);
@@ -438,7 +446,7 @@ if strcmp(SIM.CSI, 'true')
     % 3. Xi_ABの時間領域補間と全帯域復元
     % (ここからは先ほどのコードのままでOKです)
     Lp = SIM.ABWinWid; 
-        switch SIM.WindMode
+        switch SIM.WindModeAB
         case 'DFT'
             F_matrix_p = fft(eye(fft_ptB));
             phys_valid_idx_B = phys_idx_B(data_idx);
@@ -926,7 +934,7 @@ end
         %% 帯域制限(Virtual Subcarrier)を考慮した時間領域チャネル復元
         L = SIM.AAWinWid; 
             % ★データを用いたSIチャネル推定の窓関数処理
-            switch SIM.WindMode
+            switch SIM.WindModeAA
             case 'DFT'
                 F_matrix = fft(eye(fft_ptA));
                 phys_valid_idx_A = phys_idx_A(data_idx);
