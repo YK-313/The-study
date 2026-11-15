@@ -8,10 +8,10 @@ startTime = clock;
 %%%%%%%%%%%%%%%%%%%%
 %% Simulation parameter
 SIM.SNR     = 0:2:18;        % 信号対雑音電力比
-SIM.w_loop  = 3;            
-SIM.nsamp   = 5*10^SIM.w_loop;  
+SIM.w_loop  = 5;            
+SIM.nsamp   = 3*10^SIM.w_loop;  
 SIM.err_max = 300;  
-SIM.SIR     = -10;           % 希望信号対干渉電力比
+SIM.SIR     = -50;           % 希望信号対干渉電力比
 SIM.rho     = -3;
 SIM.Nrho    = -3;
 SIM.nsym    = 64;            % シンボル数         
@@ -29,7 +29,7 @@ SIM.AAWinWid = 16; % サブキャリア単位(Cp長なら16)
 SIM.ABWinWid = 16; % 所望チャネル推定時の窓関数の窓幅
 SIM.WindModeAB = 'MDFT';    % 'DFT'(pinv方式) または 'IFFT' または 'MDFT'(論文準拠) または 'BMDFT' または 'Wo'(窓関数処理なし)
 SIM.WindModeAA = 'DFT';     % 'DFT'(pinv方式) または 'IFFT' または 'MDFT'(論文準拠) または 'BMDFT' または 'Wo'(窓関数処理なし)
-SIM.mode     = 'xb_est1';   % チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2,est,xb_est,xb_est1,xb_est2)
+SIM.mode     = 'DASIC2';   % チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2,est,xb_est,xb_est1,xb_est2)
 SIM.detmode  = 'BCJR';      % BCJR,MLD(使わない)
 SIM.CSI      = 'true';      % 所望信号チャネルの推定ありorなし(完璧) 'true' or 'false' 
 SIM.PilotSym = 'LTF';       % QPSKもしくはLTF
