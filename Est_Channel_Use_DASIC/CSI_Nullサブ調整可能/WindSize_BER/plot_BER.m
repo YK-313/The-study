@@ -8,7 +8,7 @@ FS = 18;
 MS = 8;
 
 % 横軸をシンボル長に変換 (例: 32サンプル / 2 = 16シンボル)
-win_symbols = SIM.AAWinWid_list / SIM.over;
+win_symbols = SIM.WinWid_list;
 
 % プロット
 h = semilogy(win_symbols, BER, '-o');
@@ -20,7 +20,7 @@ grid on
 lb(1) = xlabel('SI Channel Estimation Window Width [Symbols]');
 lb(2) = ylabel('BER');
 
-axis([min(win_symbols) max(win_symbols) 10^(-5) 10^0]);
+axis([0 max(win_symbols) 10^(-5) 10^0]);
 
 set(gca,'Linewidth',LW,'FontName',FN,'FontSize',FS,...
     'ytick',10.^[-5:1:0], 'xTick', 0:2:max(win_symbols), ...

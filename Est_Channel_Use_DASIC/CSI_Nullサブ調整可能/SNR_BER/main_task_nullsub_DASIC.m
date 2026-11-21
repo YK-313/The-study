@@ -288,41 +288,40 @@ if strcmp(SIM.CSI, 'true')
                     % 【修正】こちらも有効サブキャリアのみで計算
                     EST.XivecAB_valid = RX.p(data_idx)./TX.pSym(data_idx,2); 
 
-                case {'DASIC'}
-                    % --- 先生提案のDASICベースLSチャネル推定 ---
-                    % 1. パイロット信号を周波数順(マイナス帯域→プラス帯域)に並べ替え
+                case {'DASIC1'}
+                    % --- 1段DASICベース LSチャネル推定 (不連続行除外版) ---
                     Y_p_ord = RX.p(freq_ordered_idx);
                     XA_p_ord = TX.pSym(freq_ordered_idx, 1);
                     XB_p_ord = TX.pSym(freq_ordered_idx, 2);
                     
                     N_val = num_data_subc;
                     
-                    % 2. 位相シフト φ_A を計算 (1番目はN番目からの巡回シフトとする)
+                    % 1. 差分オペレータ行列 (Diff_Op) の構築
                     phi_A = XA_p_ord ./ circshift(XA_p_ord, 1);
-                    
-                    % 3. 受信信号のDASIC処理 (先生の式の左辺: y_tilde_A)
-                    Y_tilde_A = Y_p_ord - phi_A .* circshift(Y_p_ord, 1);
-                    
-                    % 4. 先生の提案された行列の構築 (先生の式の右辺の行列)
-                    X_B_matrix = zeros(N_val, N_val);
+                    Diff_Op = eye(N_val);
                     for k = 1:N_val
-                        % 対角成分: x_B[k]
-                        X_B_matrix(k, k) = XB_p_ord(k);
-                        
-                        % 非対角成分(左下): -x_B[k-1] * φ_A[k]
-                        if k == 1
-                            % 1行目だけは巡回して右上に配置 (先生の式の -x_B[4]φ_A[1] に相当)
-                            X_B_matrix(k, N_val) = -XB_p_ord(N_val) * phi_A(k);
-                        else
-                            X_B_matrix(k, k-1) = -XB_p_ord(k-1) * phi_A(k);
+                        idx_minus_1 = k - 1;
+                        if idx_minus_1 < 1
+                            idx_minus_1 = idx_minus_1 + N_val; % 巡回
                         end
+                        Diff_Op(k, idx_minus_1) = -phi_A(k);
                     end
                     
-                    % 5. 擬似逆行列を用いてチャネル推定値 ξ_AB を一発で解く
-                    % （※行列式が微小になるケースへの耐性を上げるため inv ではなく pinv を使用）
-                    EST_Xi_AB_ord = pinv(X_B_matrix) * Y_tilde_A; 
+                    % 2. 1段DASIC処理の実行
+                    X_B_init = diag(XB_p_ord);
+                    Y_tilde_1 = Diff_Op * Y_p_ord;
+                    X_B_mat_1 = Diff_Op * X_B_init;
                     
-                    % 6. 順序を元(物理インデックスの data_idx 順)に戻して保存
+                    % 3. チャネル不連続箇所の除外 (ガード跨ぎ k=1 と DC跨ぎ k=29)
+                    invalid_rows1 = [1, (N_val/2 + 1)];
+                    valid_rows1 = setdiff(1:N_val, invalid_rows1);
+                    
+                    Y_tilde_1_pruned = Y_tilde_1(valid_rows1);
+                    X_B_mat_1_pruned = X_B_mat_1(valid_rows1, :);
+                    
+                    % 4. 擬似逆行列によるLSチャネル推定と物理順序への復元
+                    EST_Xi_AB_ord = pinv(X_B_mat_1_pruned) * Y_tilde_1_pruned; 
+                    
                     EST.XivecAB_valid = zeros(N_val, 1);
                     [~, inv_idx] = ismember(data_idx, freq_ordered_idx);
                     EST.XivecAB_valid = EST_Xi_AB_ord(inv_idx);
@@ -451,6 +450,20 @@ if strcmp(SIM.CSI, 'true')
                                 
                                 % 空間への再変換
                                 P.EST.Xi_vec_AA = fft(P.EST.h, fft_ptA);
+                            case 'MMSE'
+                                P.F_norm = fft(eye(fft_ptA)) / sqrt(fft_ptA);
+                                phys_valid_idx_A = phys_idx_A(data_idx);
+                                P.F_p_valid = P.F_norm(phys_valid_idx_A, 1:P.L);
+                                
+                                Omega1 = P.F_p_valid * P.F_p_valid';
+                                % 初期推定値からSI電力をその場で推定して代用
+                                est_P_a = mean(abs(P.EST.Xi_valid).^2);
+                                %reg_AA = (P.L / fft_ptA) * (CH.N0 / est_P_a);
+                                reg_AA = CH.N0 / est_P_a;
+                                Omega3 = Omega1 / (Omega1 + reg_AA * eye(num_data_subc));
+                                
+                                P.EST.Xi_vec_AA = zeros(fft_ptA, 1);
+                                P.EST.Xi_vec_AA(phys_valid_idx_A) = Omega3 * P.EST.Xi_valid;
                            case 'Wo'
                                P.EST.Xi_vec_AA = zeros(fft_ptA, 1);
                                P.EST.Xi_vec_AA(phys_idx_A(data_idx)) = P.EST.Xi_valid;
@@ -514,6 +527,77 @@ if strcmp(SIM.CSI, 'true')
             EST.hP(win_idx_B) = EST.h_win_AB;
             
             EST.Xi_vec_AB = fft(EST.hP, fft_ptB);
+        % case 'MMSE'
+        %     F_norm_p = fft(eye(fft_ptB)) / sqrt(fft_ptB);
+        %     phys_valid_idx_B = phys_idx_B(data_idx);
+        %     F_p_valid_B = F_norm_p(phys_valid_idx_B, 1:Lp);
+        % 
+        %     Omega1_B = F_p_valid_B * F_p_valid_B';
+        %     % 正則化項 (厳密なLMMSEスケーリング: 所望チャネル電力 P_b = 1)
+        %     % ※DASIC2時は雑音強調があるため、必要に応じて CH.N0 を 6*CH.N0 としても検証可
+        %     %reg_AB = (Lp / fft_ptB) * (6*CH.N0 / P_b);
+        %     reg_AB = 6 * CH.N0;
+        %     Omega3_B = Omega1_B / (Omega1_B + reg_AB * eye(num_data_subc));
+        % 
+        %     EST.Xi_vec_AB = zeros(fft_ptB, 1);
+        %     EST.Xi_vec_AB(phys_valid_idx_B) = Omega3_B * EST.XivecAB_valid;
+        case 'MMSE'
+            F_norm_p = fft(eye(fft_ptB)) / sqrt(fft_ptB);
+            
+            if strcmp(SIM.modeAB, 'DASIC2')
+                % --- 式(30)に基づく厳密なMMSE推定 (DASIC2用) ---
+                phys_ord_idx_B = phys_idx_B(freq_ordered_idx);
+                F_p_ord_B = F_norm_p(phys_ord_idx_B, 1:Lp);
+                
+                % 式(31): チャネル共分散行列 Omega_AB
+                Omega_AB = (fft_ptB / Lp) * (F_p_ord_B * F_p_ord_B');
+                
+                % 式(32): 誤差共分散行列 Psi_A = sigma^2 * I
+                %I2_theo = 16 * sin(pi * SIM.delayA / fft_ptA)^4 * abs(delay_profile_AA_sir(2))^2;
+                sigma2 = 6 * CH.N0;
+                %sigma2 = max(mean(abs(Y_tilde_2_pruned).^2) - 6, 6 * CH.N0);
+                Psi_A = sigma2 * eye(size(X_B_mat_2_pruned, 1));
+                
+                % 式(30): 2段DASIC出力 Y_tilde_2_pruned から直接MMSE推定
+                EST_Xi_AB_ord = Omega_AB * X_B_mat_2_pruned' * ...
+                    ((X_B_mat_2_pruned * Omega_AB * X_B_mat_2_pruned' + Psi_A) \ Y_tilde_2_pruned);
+                
+                EST.Xi_vec_AB = zeros(fft_ptB, 1);
+                EST.Xi_vec_AB(phys_ord_idx_B) = EST_Xi_AB_ord;
+
+            elseif strcmp(SIM.modeAB, 'DASIC1')
+                % --- 式(30)に準拠した厳密なMMSE推定 (DASIC1用) ---
+                phys_ord_idx_B = phys_idx_B(freq_ordered_idx);
+                F_p_ord_B = F_norm_p(phys_ord_idx_B, 1:Lp);
+                
+                % 式(31): チャネル共分散行列 Omega_AB (DASIC2と共通)
+                Omega_AB = (fft_ptB / Lp) * (F_p_ord_B * F_p_ord_B');
+                
+                % 式(32)の1段版: 誤差共分散行列 Psi_A = sigma1^2 * I
+                %I1_theo = 4 * sin(pi * SIM.delayA / fft_ptA)^2 * abs(delay_profile_AA_sir(2))^2;
+                sigma1 = 2 * CH.N0; % ※理論値を試す場合は 2 * CH.N0 + I1_theo に変更
+                %sigma1 = max(mean(abs(Y_tilde_1_pruned).^2) - 2, 2 * CH.N0); % 1段出力から推定
+                Psi_A = sigma1 * eye(size(X_B_mat_1_pruned, 1));
+                
+                % 1段DASIC出力 Y_tilde_1_pruned から直接MMSE推定
+                EST_Xi_AB_ord = Omega_AB * X_B_mat_1_pruned' * ...
+                    ((X_B_mat_1_pruned * Omega_AB * X_B_mat_1_pruned' + Psi_A) \ Y_tilde_1_pruned);
+                
+                EST.Xi_vec_AB = zeros(fft_ptB, 1);
+                EST.Xi_vec_AB(phys_ord_idx_B) = EST_Xi_AB_ord;
+                
+            else
+                % --- 従来通り (DASIC1, DASIC2以外のモード用) ---
+                phys_valid_idx_B = phys_idx_B(data_idx);
+                F_p_valid_B = F_norm_p(phys_valid_idx_B, 1:Lp);
+                
+                Omega1_B = (fft_ptB / Lp) * (F_p_valid_B * F_p_valid_B');
+                reg_AB = CH.N0;
+                Omega3_B = Omega1_B / (Omega1_B + reg_AB * eye(num_data_subc));
+                
+                EST.Xi_vec_AB = zeros(fft_ptB, 1);
+                EST.Xi_vec_AB(phys_valid_idx_B) = Omega3_B * EST.XivecAB_valid;
+            end
         case 'Wo'
             EST.Xi_vec_AB = zeros(fft_ptB, 1);
             EST.Xi_vec_AB(phys_idx_B(data_idx)) = EST.XivecAB_valid; 
@@ -1003,6 +1087,20 @@ end
                 EST.h(win_idx_A2) = EST.h_win_AA;
                 
                 EST.Xi_vec_AA = fft(EST.h, fft_ptA);
+            case 'MMSE'
+                F_norm = fft(eye(fft_ptA)) / sqrt(fft_ptA);
+                phys_valid_idx_A = phys_idx_A(data_idx);
+                F_p_valid = F_norm(phys_valid_idx_A, 1:L);
+                
+                Omega1 = F_p_valid * F_p_valid';
+                % 初期推定値からSI電力をその場で推定して代用
+                est_P_a = mean(abs(EST.Xi_valid).^2);
+                %reg_AA = (L / fft_ptA) * (CH.N0 / est_P_a);
+                reg_AA = CH.N0 / est_P_a;
+                Omega3 = Omega1 / (Omega1 + reg_AA * eye(num_data_subc));
+                
+                EST.Xi_vec_AA = zeros(fft_ptA, 1);
+                EST.Xi_vec_AA(phys_valid_idx_A) = Omega3 * EST.Xi_valid;
             case 'Wo'
                 EST.Xi_vec_AA = zeros(fft_ptA, 1);
                 EST.Xi_vec_AA(phys_idx_A(data_idx)) = EST.Xi_valid; % P.EST ではなく EST を使う             
