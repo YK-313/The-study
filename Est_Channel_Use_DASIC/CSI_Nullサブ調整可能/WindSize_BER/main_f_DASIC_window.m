@@ -12,7 +12,7 @@ SIM.WinWid_list = [1 2 4 8 16]; % SI(AA)窓幅のリスト
 SIM.w_loop  = 5;            
 SIM.nsamp   = 3*10^SIM.w_loop;  
 SIM.err_max = 300;  
-SIM.SIR     = -30;           % 希望信号対干渉電力比
+SIM.SIR     = -10;           % 希望信号対干渉電力比
 SIM.rho     = -3;
 SIM.Nrho    = -3;
 SIM.nsym    = 64;            % シンボル数         
@@ -27,14 +27,14 @@ SIM.LLRclip = 10000000000;
 G.Q         = 4; % 変調次数
 G.ml        = log2(G.Q);
 SIM.ABWinWid = 16; % 所望チャネル推定時の窓関数の窓幅
-SIM.WindModeAB = 'DFT';    % 'DFT'(pinv方式) または 'IFFT' または 'MDFT'(論文準拠) または 'BMDFT' または 'Wo'(窓関数処理なし)
-SIM.WindModeAA = 'DFT';     % 'DFT'(pinv方式) または 'IFFT' または 'MDFT'(論文準拠) または 'BMDFT' または 'Wo'(窓関数処理なし)
-SIM.mode     = 'DASIC1';   % チャネル推定のためのDASICの段数
+SIM.WindModeAB = 'MMSE';    % 'DFT'(pinv方式) または 'IFFT' または 'MDFT'(論文準拠) または 'BMDFT(漏れ込みに対する両側に窓関数)' または 'MMSE' または 'Wo'(窓関数処理なし)
+SIM.WindModeAA = 'MMSE';     % 'DFT'(pinv方式) または 'IFFT' または 'MDFT'(論文準拠) または 'BMDFT(漏れ込みに対する両側に窓関数)' または 'MMSE' または 'Wo'(窓関数処理なし)
+SIM.mode     = 'xb_est2';   % チャネル推定のためのDASICの段数 (Perfect,DASIC1,DASIC2,est,xb_est,xb_est1,xb_est2)
 SIM.detmode  = 'BCJR';      % BCJR,MLD(使わない)
-SIM.CSI      = 'true';      % 所望信号チャネルの推定ありorなし(完璧) 'true' or 'false' 
+SIM.CSI      = 'false';      % 所望信号チャネルの推定ありorなし(完璧) 'true' or 'false' 
 SIM.PilotSym = 'LTF';       % QPSKもしくはLTF
 SIM.PilotMode = 'simul';    % パイロットシンボルの送信タイミング (alter, simul)
-SIM.modeAB   = 'DASIC2';    % ABチャネル推定用のモード選択
+SIM.modeAB   = 'DASIC2';    % ABチャネル推定用のモード選択 (Perfect,WoSIC,SIC,DASIC1,DASIC2)
 SIM.null     = 'true';
 
 % ==========================================
@@ -58,7 +58,7 @@ nod_raw = zeros(size(Win_list));
 %%%%%%%%%%%%%% 
 parfor idx = 1:length(Win_list)
     % 分割された軽いタスクを独立して実行
-    RES = main_task_nullsub_DASIC(Win_list(idx), idx, SIM, G);
+    RES = main_task_nullsub_DASIC_window(Win_list(idx), idx, SIM, G);
     
     % タスクごとのエラー数と総ビット数を記録
     noe_raw(idx) = RES.noe;
